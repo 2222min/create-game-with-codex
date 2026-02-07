@@ -1,13 +1,7 @@
 import { createFixedStepLoop } from "./engine/loop.js";
 import { createInputAdapter } from "./game/input.js";
 import { renderGame } from "./game/render.js";
-import {
-  createInitialGameState,
-  getAttackUpgradeCost,
-  getConvenienceSlotCost,
-  getCritUpgradeCost,
-  getHealthUpgradeCost,
-} from "./game/state.js";
+import { createInitialGameState } from "./game/state.js";
 import { getUiSnapshot, updateGame } from "./game/update.js";
 
 const STEP_MS = 1000 / 60;
@@ -25,6 +19,30 @@ if (!ctx) {
 const input = createInputAdapter();
 let state = createInitialGameState();
 let manualStepping = false;
+
+function bindQuickActions(inputAdapter) {
+  const root = document.getElementById("quick-actions");
+  if (!root) return () => {};
+
+  const handlers = [];
+  const buttons = root.querySelectorAll("[data-action]");
+  for (const button of buttons) {
+    if (!(button instanceof HTMLButtonElement)) continue;
+    const action = button.dataset.action;
+    if (!action) continue;
+
+    const handler = (event) => {
+      inputAdapter.press(action);
+      event.preventDefault();
+    };
+    button.addEventListener("click", handler);
+    handlers.push(() => button.removeEventListener("click", handler));
+  }
+
+  return () => {
+    for (const clean of handlers) clean();
+  };
+}
 
 function tick(dtMs) {
   const command = input.poll();
@@ -44,6 +62,8 @@ const loop = createFixedStepLoop({
   render,
 });
 
+const unbindQuickActions = bindQuickActions(input);
+
 window.render_game_to_text = () => {
   const ui = getUiSnapshot(state);
   const payload = {
@@ -58,6 +78,14 @@ window.render_game_to_text = () => {
       critChance: Number(state.hero.critChance.toFixed(3)),
       xp: Number(state.hero.xp.toFixed(1)),
       xpToNext: state.hero.xpToNext,
+    },
+    sword: {
+      level: state.sword.level,
+      tier: state.sword.tier,
+      attemptCount: state.sword.enhanceAttemptCount,
+      lastResult: state.sword.lastResult,
+      nextCostGold: ui.swordCost,
+      nextSuccessRate: Number(ui.swordSuccessRate.toFixed(3)),
     },
     progression: {
       stage: state.progression.stage,
@@ -77,19 +105,11 @@ window.render_game_to_text = () => {
     economy: {
       gold: ui.gold,
       gems: ui.gems,
-      attackUpgradeLevel: state.economy.attackUpgradeLevel,
-      healthUpgradeLevel: state.economy.healthUpgradeLevel,
-      critUpgradeLevel: state.economy.critUpgradeLevel,
-      nextCosts: {
-        attack: getAttackUpgradeCost(state.economy.attackUpgradeLevel),
-        health: getHealthUpgradeCost(state.economy.healthUpgradeLevel),
-        crit: getCritUpgradeCost(state.economy.critUpgradeLevel),
-        convenience: getConvenienceSlotCost(state.monetization.convenienceSlots),
-      },
       chest: {
         claimable: state.economy.chest.claimable,
         fillRatio: Number((state.economy.chest.chargeMs / state.economy.chest.intervalMs).toFixed(3)),
       },
+      convenienceSlotCost: 40 + state.monetization.convenienceSlots * 24,
     },
     monetization: {
       starterPackPurchased: state.monetization.starterPackPurchased,
@@ -123,6 +143,7 @@ window.advanceTime = (ms) => {
 };
 
 window.addEventListener("beforeunload", () => {
+  unbindQuickActions();
   input.destroy();
   loop.stop();
 });

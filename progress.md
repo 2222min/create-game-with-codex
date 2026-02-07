@@ -182,3 +182,27 @@ Original prompt: 안녕. 좋은 아침이야. 나느 게임 개발자가 아니�
   - `tests/playwright-actions-stage-boss.json`
   - artifact: `output/web-game-stage-boss-check`
 - Confirmed no runtime launch/test errors in successful Playwright run.
+
+## 2026-02-07 (RPG Readability + Sword Enhancement Rework)
+
+- Reworked RPG UX readability:
+  - Added explicit 3-step onboarding panel in `projects/rpg-idle-brag/web/index.html`
+  - Added big click-action buttons (`start`, `enhance`, `chest`, `shop`, `submit`, `brag`)
+  - Simplified in-canvas information hierarchy in `projects/rpg-idle-brag/web/src/game/render.js`
+- Replaced generic upgrades with sword-progression system:
+  - Added sword state model (`level/tier/attackBonus/attempt/result/roll/effect`) in `projects/rpg-idle-brag/web/src/game/state.js`
+  - Added sword-enhance probability curve (higher level => lower success rate)
+  - Added success/fail outcomes with visual feedback + notice updates
+- Updated input and runtime wiring:
+  - keyboard mapping focused on sword flow in `projects/rpg-idle-brag/web/src/game/input.js`
+  - DOM click-action binding added in `projects/rpg-idle-brag/web/src/main.js`
+  - `render_game_to_text` extended with sword telemetry
+- Updated tests for new mechanics:
+  - `projects/rpg-idle-brag/web/tests/update.test.js`
+  - includes success/fail path, probability regression, persistence after restart
+- Updated playtest action scenario:
+  - `projects/rpg-idle-brag/web/tests/playwright-actions-cycle01.json`
+- Validation:
+  - `npm test` pass (21/21)
+  - `npm run playtest:rpg` pass
+  - artifacts refreshed in `output/rpg-idle-brag-cycle01`

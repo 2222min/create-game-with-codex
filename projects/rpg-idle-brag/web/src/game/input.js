@@ -1,22 +1,21 @@
 const KEY_TO_ACTION = {
   Enter: "start",
   KeyR: "restart",
-  ArrowLeft: "buyAttack",
-  ArrowRight: "buyHealth",
-  KeyA: "buyCrit",
-  KeyB: "checkoutOrConvenience",
+  ArrowLeft: "enhanceSword",
+  KeyE: "enhanceSword",
   Space: "claimChest",
+  KeyB: "checkoutOrConvenience",
   ArrowUp: "submitScore",
+  KeyU: "submitScore",
   ArrowDown: "generateBragCard",
+  KeyJ: "generateBragCard",
 };
 
 export function createInputAdapter() {
   const oneShot = {
     start: false,
     restart: false,
-    buyAttack: false,
-    buyHealth: false,
-    buyCrit: false,
+    enhanceSword: false,
     checkoutOrConvenience: false,
     claimChest: false,
     submitScore: false,

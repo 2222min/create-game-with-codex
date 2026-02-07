@@ -36,16 +36,20 @@ export function createEnemyForStage(stage) {
   };
 }
 
-export function getAttackUpgradeCost(level) {
-  return Math.floor(60 * Math.pow(1.22, level));
+export function getSwordEnhanceCost(level) {
+  return Math.floor(55 * Math.pow(1.27, level));
 }
 
-export function getHealthUpgradeCost(level) {
-  return Math.floor(75 * Math.pow(1.24, level));
+export function getSwordEnhanceSuccessRate(level) {
+  return clamp(0.96 - level * 0.045, 0.2, 0.96);
 }
 
-export function getCritUpgradeCost(level) {
-  return Math.floor(95 * Math.pow(1.28, level));
+export function getSwordTier(level) {
+  if (level >= 25) return "Mythic";
+  if (level >= 18) return "Legend";
+  if (level >= 12) return "Epic";
+  if (level >= 7) return "Rare";
+  return "Common";
 }
 
 export function getConvenienceSlotCost(slotCount) {
@@ -55,6 +59,7 @@ export function getConvenienceSlotCost(slotCount) {
 export function createInitialGameState() {
   const liveOps = createLiveOpsState();
   const season = getActiveSeason(liveOps);
+
   return {
     mode: "start",
     bounds: { width: GAME_WIDTH, height: GAME_HEIGHT },
@@ -75,6 +80,16 @@ export function createInitialGameState() {
       attackCooldownMs: 500,
       regenPerSecond: 1.8,
     },
+    sword: {
+      level: 0,
+      tier: "Common",
+      attackBonus: 0,
+      enhanceAttemptCount: 0,
+      lastResult: "none",
+      lastRoll: null,
+      effectTtlMs: 0,
+      sparklePhaseMs: 0,
+    },
     progression: {
       stage: 1,
       kills: 0,
@@ -84,9 +99,6 @@ export function createInitialGameState() {
     },
     enemy: createEnemyForStage(1),
     economy: {
-      attackUpgradeLevel: 0,
-      healthUpgradeLevel: 0,
-      critUpgradeLevel: 0,
       chest: {
         chargeMs: 0,
         intervalMs: 9000,
@@ -114,7 +126,7 @@ export function createInitialGameState() {
     analytics: createAnalyticsState(),
     social: createSocialState(),
     ui: {
-      notice: "ENTER로 시작하고 자동 전투를 지켜보세요.",
+      notice: "1) ENTER 시작  2) 검 강화  3) 랭킹 제출",
       noticeTtlMs: 0,
       pulseMs: 0,
     },

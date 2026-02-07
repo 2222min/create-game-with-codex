@@ -17,19 +17,19 @@ import {
   clamp,
   createEnemyForStage,
   createInitialGameState,
-  getAttackUpgradeCost,
   getConvenienceSlotCost,
-  getCritUpgradeCost,
-  getHealthUpgradeCost,
+  getSwordEnhanceCost,
+  getSwordEnhanceSuccessRate,
+  getSwordTier,
 } from "./state.js";
 
-const MAX_CRIT_CHANCE = 0.55;
 const MAX_CONVENIENCE_SLOTS = 3;
 
 function cloneState(state) {
   return {
     ...state,
     hero: { ...state.hero },
+    sword: { ...state.sword },
     progression: { ...state.progression },
     economy: {
       ...state.economy,
@@ -97,11 +97,9 @@ function computePowerScore(state) {
   const stageScore = state.progression.stage * 120;
   const levelScore = state.hero.level * 70;
   const bossScore = state.progression.bossKills * 240;
-  const upgradeScore =
-    state.economy.attackUpgradeLevel * 35 +
-    state.economy.healthUpgradeLevel * 30 +
-    state.economy.critUpgradeLevel * 40;
-  return stageScore + levelScore + bossScore + upgradeScore;
+  const swordScore = state.sword.level * 85;
+  const monetizationScore = state.monetization.convenienceSlots * 28;
+  return stageScore + levelScore + bossScore + swordScore + monetizationScore;
 }
 
 function applyLevelUps(state) {
@@ -182,7 +180,7 @@ function updateChest(state, dtMs) {
 function applyChestClaim(state) {
   const chest = state.economy.chest;
   if (chest.claimable <= 0) {
-    setNotice(state, "보상 상자가 아직 준비되지 않았습니다.", 1200);
+    setNotice(state, "상자가 아직 준비되지 않았습니다.", 1200);
     return;
   }
   chest.claimable -= 1;
@@ -205,56 +203,59 @@ function applyChestClaim(state) {
   setNotice(state, `상자 수령 +${gold}G / +${xp}XP`, 1400);
 }
 
-function tryBuyAttackUpgrade(state) {
-  const cost = getAttackUpgradeCost(state.economy.attackUpgradeLevel);
-  const debited = walletDebit(state, cost, "soft", "upgrade_attack", `atk_${state.economy.attackUpgradeLevel}`);
-  if (!debited.ok) {
-    setNotice(state, `골드 부족: 공격 강화 ${cost}G`, 1200);
-    return;
-  }
-  state.economy.attackUpgradeLevel += 1;
-  state.hero.attack += 4;
-  setNotice(state, `공격 강화 +4 (Lv.${state.economy.attackUpgradeLevel})`, 1200);
-  trackEvent(state, "upgrade_applied", {
-    type: "attack",
-    level: state.economy.attackUpgradeLevel,
-    cost,
-  });
-}
+function tryEnhanceSword(state, rng) {
+  const currentLevel = state.sword.level;
+  const cost = getSwordEnhanceCost(currentLevel);
+  const successRate = getSwordEnhanceSuccessRate(currentLevel);
 
-function tryBuyHealthUpgrade(state) {
-  const cost = getHealthUpgradeCost(state.economy.healthUpgradeLevel);
-  const debited = walletDebit(state, cost, "soft", "upgrade_health", `hp_${state.economy.healthUpgradeLevel}`);
+  const debited = walletDebit(state, cost, "soft", "sword_enhance", `sword_${currentLevel}`);
   if (!debited.ok) {
-    setNotice(state, `골드 부족: 체력 강화 ${cost}G`, 1200);
+    setNotice(state, `골드 부족: 검 강화 비용 ${cost}G`, 1300);
     return;
   }
-  state.economy.healthUpgradeLevel += 1;
-  state.hero.maxHp += 28;
-  state.hero.hp = Math.min(state.hero.maxHp, state.hero.hp + 28);
-  setNotice(state, `체력 강화 +28 (Lv.${state.economy.healthUpgradeLevel})`, 1200);
-  trackEvent(state, "upgrade_applied", {
-    type: "health",
-    level: state.economy.healthUpgradeLevel,
-    cost,
-  });
-}
 
-function tryBuyCritUpgrade(state) {
-  const cost = getCritUpgradeCost(state.economy.critUpgradeLevel);
-  const debited = walletDebit(state, cost, "soft", "upgrade_crit", `crit_${state.economy.critUpgradeLevel}`);
-  if (!debited.ok) {
-    setNotice(state, `골드 부족: 치명 강화 ${cost}G`, 1200);
-    return;
+  state.sword.enhanceAttemptCount += 1;
+  const roll = rng();
+  state.sword.lastRoll = roll;
+
+  if (roll <= successRate) {
+    state.sword.level += 1;
+    state.sword.tier = getSwordTier(state.sword.level);
+
+    const attackGain = 3 + Math.floor(state.sword.level / 4);
+    const currentAttackBonus = Number.isFinite(state.sword.attackBonus) ? state.sword.attackBonus : 0;
+    state.sword.attackBonus = currentAttackBonus + attackGain;
+    state.hero.attack += attackGain;
+
+    state.sword.lastResult = "success";
+    state.sword.effectTtlMs = 1300;
+
+    setNotice(
+      state,
+      `강화 성공! +${state.sword.level} 검 / 공격 +${attackGain} (성공률 ${(successRate * 100).toFixed(0)}%)`,
+      1500
+    );
+
+    trackEvent(state, "upgrade_applied", {
+      type: "sword",
+      level: state.sword.level,
+      success: true,
+      cost,
+      success_rate: successRate,
+    });
+  } else {
+    state.sword.lastResult = "fail";
+    state.sword.effectTtlMs = 900;
+    setNotice(state, `강화 실패... (성공률 ${(successRate * 100).toFixed(0)}%)`, 1300);
+
+    trackEvent(state, "upgrade_applied", {
+      type: "sword",
+      level: state.sword.level,
+      success: false,
+      cost,
+      success_rate: successRate,
+    });
   }
-  state.economy.critUpgradeLevel += 1;
-  state.hero.critChance = clamp(state.hero.critChance + 0.03, 0, MAX_CRIT_CHANCE);
-  setNotice(state, `치명 확률 +3% (현재 ${(state.hero.critChance * 100).toFixed(0)}%)`, 1200);
-  trackEvent(state, "upgrade_applied", {
-    type: "crit",
-    level: state.economy.critUpgradeLevel,
-    cost,
-  });
 }
 
 function tryStarterPackCheckout(state) {
@@ -347,7 +348,7 @@ function trySubmitScore(state) {
 function tryGenerateBragCard(state) {
   const submittedScore = state.progression.lastScoreSubmitted;
   if (submittedScore <= 0) {
-    setNotice(state, "먼저 UP으로 랭킹을 제출하세요.", 1200);
+    setNotice(state, "먼저 랭킹 제출을 하세요.", 1200);
     return;
   }
 
@@ -412,8 +413,8 @@ function updateCombat(state, dtMs, rng) {
 function toPlayingState(state) {
   const next = cloneState(state);
   next.mode = "playing";
-  next.ui.notice = "자동 전투 시작. LEFT/RIGHT/A로 강화, B로 결제/편의";
-  next.ui.noticeTtlMs = 2200;
+  next.ui.notice = "E 또는 [검 강화] 버튼으로 강화하세요";
+  next.ui.noticeTtlMs = 2600;
   next.season = getActiveSeason(next.liveOps);
 
   const joined = joinGuild(next.social, next.playerId, next.social.guildId);
@@ -440,6 +441,16 @@ function resetRunState(previousState) {
   fresh.analytics = previousState.analytics;
   fresh.liveOps = previousState.liveOps;
   fresh.season = getActiveSeason(fresh.liveOps);
+
+  fresh.sword = {
+    ...previousState.sword,
+    lastResult: "none",
+    lastRoll: null,
+    effectTtlMs: 0,
+  };
+  const swordAttackBonus = Number.isFinite(fresh.sword.attackBonus) ? fresh.sword.attackBonus : 0;
+  fresh.hero.attack += swordAttackBonus;
+
   return toPlayingState(fresh);
 }
 
@@ -464,9 +475,10 @@ export function updateGame(state, input, dtMs, rng = Math.random) {
   next.ui.noticeTtlMs = Math.max(0, next.ui.noticeTtlMs - dtMs);
   if (next.ui.noticeTtlMs === 0) next.ui.notice = "";
 
-  if (input.buyAttack) tryBuyAttackUpgrade(next);
-  if (input.buyHealth) tryBuyHealthUpgrade(next);
-  if (input.buyCrit) tryBuyCritUpgrade(next);
+  next.sword.effectTtlMs = Math.max(0, next.sword.effectTtlMs - dtMs);
+  next.sword.sparklePhaseMs = (next.sword.sparklePhaseMs + dtMs) % 3600;
+
+  if (input.enhanceSword) tryEnhanceSword(next, rng);
   if (input.checkoutOrConvenience) tryStarterPackCheckout(next);
   if (input.claimChest) applyChestClaim(next);
   if (input.submitScore) trySubmitScore(next);
@@ -490,5 +502,7 @@ export function getUiSnapshot(state) {
     gold: balance.soft,
     gems: balance.premium,
     leaderboard,
+    swordCost: getSwordEnhanceCost(state.sword.level),
+    swordSuccessRate: getSwordEnhanceSuccessRate(state.sword.level),
   };
 }
