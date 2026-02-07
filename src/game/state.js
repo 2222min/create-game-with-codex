@@ -36,9 +36,16 @@ export function createInitialGameState() {
       bestCount: 0,
       lastBurstKills: 0,
     },
+    stage: {
+      number: 1,
+      phase: "normal",
+      phaseElapsedMs: 0,
+      normalDurationMs: 16000,
+      bossSpawned: false,
+    },
     spawner: {
-      spawnEveryMs: 900,
-      timerMs: 300,
+      spawnEveryMs: 1700,
+      timerMs: 900,
       nextEnemyId: 1,
       nextShardId: 1,
     },

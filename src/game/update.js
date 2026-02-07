@@ -6,13 +6,19 @@ import {
   createInitialGameState,
 } from "./state.js";
 
+const BOSS_TAG = "boss";
 const PLAYER_CONTACT_DAMAGE = 20;
+const BOSS_CONTACT_DAMAGE = 34;
 const PLAYER_INVULNERABLE_MS = 420;
 const ENEMY_KILL_SCORE = 30;
+const BOSS_HIT_SCORE = 22;
+const BOSS_DEFEAT_SCORE_BASE = 220;
 const SHARD_SCORE = 12;
 const SHARD_BURST_REFILL_MS = 260;
 const PASSIVE_SCORE_PER_MS = 0.015;
 const SHARD_DROP_CHANCE = 0.35;
+const NORMAL_STAGE_DURATION_MS = 16000;
+const STAGE_CLEAR_HEAL = 18;
 const CHAIN_MULTIPLIER_STEP = 0.5;
 const CHAIN_MULTIPLIER_CAP = 3;
 
@@ -32,7 +38,41 @@ function normalize(dx, dy) {
   return { x: dx / mag, y: dy / mag };
 }
 
-function spawnEnemy(spawner, bounds, rng) {
+function normalizeStage(stage) {
+  return {
+    number: stage?.number ?? 1,
+    phase: stage?.phase ?? "normal",
+    phaseElapsedMs: stage?.phaseElapsedMs ?? 0,
+    normalDurationMs: stage?.normalDurationMs ?? NORMAL_STAGE_DURATION_MS,
+    bossSpawned: stage?.bossSpawned ?? false,
+  };
+}
+
+export function getSpawnIntervalForStage(stageNumber) {
+  return Math.max(520, 1700 - (stageNumber - 1) * 130);
+}
+
+function getMaxEnemiesForStage(stageNumber) {
+  return Math.min(18, 4 + stageNumber * 2);
+}
+
+function getEnemySpeedForStage(stageNumber, rng) {
+  const baseSpeed = 42 + (stageNumber - 1) * 6;
+  const variance = 20 + (stageNumber - 1) * 3;
+  return baseSpeed + rng() * variance;
+}
+
+function getBossStatsForStage(stageNumber) {
+  const maxHp = 5 + stageNumber * 2;
+  return {
+    maxHp,
+    radius: 30 + Math.min(10, stageNumber),
+    speed: 44 + stageNumber * 4,
+    scoreValue: BOSS_DEFEAT_SCORE_BASE + stageNumber * 45,
+  };
+}
+
+function spawnEnemy(spawner, bounds, stageNumber, rng) {
   const side = Math.floor(rng() * 4);
   let x = 0;
   let y = 0;
@@ -53,10 +93,34 @@ function spawnEnemy(spawner, bounds, rng) {
   return {
     enemy: {
       id: spawner.nextEnemyId,
+      type: "normal",
       x,
       y,
       radius: ENEMY_RADIUS,
-      speed: 70 + rng() * 56,
+      speed: getEnemySpeedForStage(stageNumber, rng),
+      hp: 1,
+      maxHp: 1,
+    },
+    nextSpawner: {
+      ...spawner,
+      nextEnemyId: spawner.nextEnemyId + 1,
+    },
+  };
+}
+
+function spawnBoss(spawner, bounds, stageNumber) {
+  const bossStats = getBossStatsForStage(stageNumber);
+  return {
+    enemy: {
+      id: spawner.nextEnemyId,
+      type: BOSS_TAG,
+      x: bounds.width / 2,
+      y: Math.max(72, bossStats.radius + 24),
+      radius: bossStats.radius,
+      speed: bossStats.speed,
+      hp: bossStats.maxHp,
+      maxHp: bossStats.maxHp,
+      scoreValue: bossStats.scoreValue,
     },
     nextSpawner: {
       ...spawner,
@@ -86,10 +150,12 @@ export function updateGame(state, input, dtMs, rng = Math.random) {
   }
 
   const dt = dtMs / 1000;
+  const currentStage = normalizeStage(state.stage);
   const movement = normalize(
     (input.right ? 1 : 0) - (input.left ? 1 : 0),
     (input.down ? 1 : 0) - (input.up ? 1 : 0)
   );
+  const spawnEveryMs = getSpawnIntervalForStage(currentStage.number);
 
   const next = {
     ...state,
@@ -111,8 +177,14 @@ export function updateGame(state, input, dtMs, rng = Math.random) {
       windowRemainingMs: Math.max(0, state.chain.windowRemainingMs - dtMs),
       lastBurstKills: 0,
     },
+    stage: {
+      ...currentStage,
+      phaseElapsedMs: currentStage.phaseElapsedMs + dtMs,
+      normalDurationMs: currentStage.normalDurationMs || NORMAL_STAGE_DURATION_MS,
+    },
     spawner: {
       ...state.spawner,
+      spawnEveryMs,
       timerMs: state.spawner.timerMs - dtMs,
     },
     enemies: state.enemies.map((enemy) => ({ ...enemy })),
@@ -134,13 +206,37 @@ export function updateGame(state, input, dtMs, rng = Math.random) {
     didTriggerBurst = true;
   }
 
-  while (next.spawner.timerMs <= 0) {
-    const spawned = spawnEnemy(next.spawner, next.bounds, rng);
-    next.spawner = {
-      ...spawned.nextSpawner,
-      timerMs: next.spawner.timerMs + next.spawner.spawnEveryMs,
-    };
-    next.enemies.push(spawned.enemy);
+  if (next.stage.phase === "normal" && next.stage.phaseElapsedMs >= next.stage.normalDurationMs) {
+    next.stage.phase = "boss";
+    next.stage.phaseElapsedMs = 0;
+    next.stage.bossSpawned = false;
+    next.enemies = next.enemies.filter((enemy) => enemy.type === BOSS_TAG);
+    next.spawner.timerMs = next.spawner.spawnEveryMs;
+  }
+
+  if (next.stage.phase === "boss") {
+    next.spawner.timerMs = next.spawner.spawnEveryMs;
+    const bossAlive = next.enemies.some((enemy) => enemy.type === BOSS_TAG);
+    if (!bossAlive && !next.stage.bossSpawned) {
+      const spawnedBoss = spawnBoss(next.spawner, next.bounds, next.stage.number);
+      next.spawner = spawnedBoss.nextSpawner;
+      next.enemies.push(spawnedBoss.enemy);
+      next.stage.bossSpawned = true;
+    }
+  } else {
+    while (next.spawner.timerMs <= 0) {
+      const normalEnemyCount = next.enemies.filter((enemy) => enemy.type !== BOSS_TAG).length;
+      if (normalEnemyCount >= getMaxEnemiesForStage(next.stage.number)) {
+        next.spawner.timerMs = 140;
+        break;
+      }
+      const spawned = spawnEnemy(next.spawner, next.bounds, next.stage.number, rng);
+      next.spawner = {
+        ...spawned.nextSpawner,
+        timerMs: next.spawner.timerMs + next.spawner.spawnEveryMs,
+      };
+      next.enemies.push(spawned.enemy);
+    }
   }
 
   for (const enemy of next.enemies) {
@@ -152,18 +248,36 @@ export function updateGame(state, input, dtMs, rng = Math.random) {
   if (next.burst.activeRemainingMs > 0) {
     const radiusSq = next.burst.radius * next.burst.radius;
     const survivors = [];
-    const killed = [];
+    const defeated = [];
+    let burstScore = 0;
+    let burstSuccessCount = 0;
     for (const enemy of next.enemies) {
       const nearPlayer =
         distanceSq(enemy.x, enemy.y, next.player.x, next.player.y) <=
         radiusSq + enemy.radius * enemy.radius;
-      if (nearPlayer) {
-        killed.push(enemy);
-      } else {
+      if (!nearPlayer) {
         survivors.push(enemy);
+        continue;
+      }
+
+      if (enemy.type === BOSS_TAG) {
+        enemy.hp -= 1;
+        burstScore += BOSS_HIT_SCORE;
+        burstSuccessCount += 1;
+        if (enemy.hp <= 0) {
+          defeated.push(enemy);
+          burstScore += enemy.scoreValue ?? BOSS_DEFEAT_SCORE_BASE;
+        } else {
+          survivors.push(enemy);
+        }
+      } else {
+        defeated.push(enemy);
+        burstScore += ENEMY_KILL_SCORE;
+        burstSuccessCount += 1;
       }
     }
-    if (killed.length > 0) {
+
+    if (burstSuccessCount > 0) {
       const chainCount = next.chain.windowRemainingMs > 0 ? next.chain.count + 1 : 1;
       const chainMultiplier = Math.min(
         CHAIN_MULTIPLIER_CAP,
@@ -173,10 +287,11 @@ export function updateGame(state, input, dtMs, rng = Math.random) {
       next.chain.multiplier = chainMultiplier;
       next.chain.windowRemainingMs = next.chain.windowDurationMs;
       next.chain.bestCount = Math.max(next.chain.bestCount, chainCount);
-      next.chain.lastBurstKills = killed.length;
+      next.chain.lastBurstKills = burstSuccessCount;
 
-      next.score += killed.length * ENEMY_KILL_SCORE * chainMultiplier;
-      for (const enemy of killed) {
+      next.score += burstScore * chainMultiplier;
+      for (const enemy of defeated) {
+        if (enemy.type === BOSS_TAG) continue;
         if (rng() < SHARD_DROP_CHANCE) {
           next.shards.push({
             id: next.spawner.nextShardId,
@@ -192,6 +307,7 @@ export function updateGame(state, input, dtMs, rng = Math.random) {
       next.chain.multiplier = 1;
       next.chain.windowRemainingMs = 0;
     }
+
     next.enemies = survivors;
   }
 
@@ -222,13 +338,31 @@ export function updateGame(state, input, dtMs, rng = Math.random) {
     const touching =
       distanceSq(enemy.x, enemy.y, next.player.x, next.player.y) <= hitDist * hitDist;
     if (touching && next.player.invulnerableMs <= 0) {
-      next.player.hp -= PLAYER_CONTACT_DAMAGE;
+      const damage = enemy.type === BOSS_TAG ? BOSS_CONTACT_DAMAGE : PLAYER_CONTACT_DAMAGE;
+      next.player.hp -= damage;
       next.player.invulnerableMs = PLAYER_INVULNERABLE_MS;
+      if (enemy.type === BOSS_TAG) {
+        survivorsAfterContact.push(enemy);
+      }
     } else {
       survivorsAfterContact.push(enemy);
     }
   }
   next.enemies = survivorsAfterContact;
+
+  if (next.stage.phase === "boss" && next.stage.bossSpawned) {
+    const bossAlive = next.enemies.some((enemy) => enemy.type === BOSS_TAG);
+    if (!bossAlive) {
+      next.stage.number += 1;
+      next.stage.phase = "normal";
+      next.stage.phaseElapsedMs = 0;
+      next.stage.bossSpawned = false;
+      next.stage.normalDurationMs = NORMAL_STAGE_DURATION_MS;
+      next.spawner.spawnEveryMs = getSpawnIntervalForStage(next.stage.number);
+      next.spawner.timerMs = Math.max(300, next.spawner.spawnEveryMs * 0.65);
+      next.player.hp = Math.min(next.player.maxHp, next.player.hp + STAGE_CLEAR_HEAL + 8);
+    }
+  }
 
   if (next.player.hp <= 0) {
     next.mode = "gameover";

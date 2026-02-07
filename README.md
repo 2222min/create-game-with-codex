@@ -40,6 +40,7 @@ Compatibility:
 
 Check point:
 - `Chain xN / Mult xM` should rise after consecutive successful bursts.
+- Stage loop: `WAVE` progress should switch to `BOSS` phase, then advance to next stage after boss defeat.
 
 ## 3) Local run (developer/tester)
 

@@ -173,3 +173,12 @@ Original prompt: 안녕. 좋은 아침이야. 나느 게임 개발자가 아니�
 - Add leaderboard persistence across reload/session
 - Add mobile touch controls for RPG screen and corresponding Playwright scenario
 - Add server-authoritative anti-cheat/persistence strategy draft
+
+## 2026-02-07 (Stage/Boss Re-Validation for Deploy)
+
+- Re-ran focused unit tests:
+  - `node --test tests/update.test.js` (10/10 pass)
+- Re-ran Playwright runtime check for stage/boss build:
+  - `tests/playwright-actions-stage-boss.json`
+  - artifact: `output/web-game-stage-boss-check`
+- Confirmed no runtime launch/test errors in successful Playwright run.

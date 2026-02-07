@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createInitialGameState } from "../src/game/state.js";
-import { updateGame } from "../src/game/update.js";
+import { getSpawnIntervalForStage, updateGame } from "../src/game/update.js";
 
 function toPlaying(baseState = createInitialGameState()) {
   return updateGame(
@@ -235,4 +235,61 @@ test("chain resets when burst misses all enemies", () => {
   assert.equal(afterMiss.chain.count, 0);
   assert.equal(afterMiss.chain.multiplier, 1);
   assert.equal(afterMiss.chain.windowRemainingMs, 0);
+});
+
+test("normal wave transitions into boss stage", () => {
+  const state = toPlaying();
+  state.spawner.timerMs = 99999;
+  state.stage.phase = "normal";
+  state.stage.phaseElapsedMs = state.stage.normalDurationMs;
+
+  const next = updateGame(state, idleInput(), 16, () => 0.42);
+
+  assert.equal(next.stage.phase, "boss");
+  assert.equal(next.stage.bossSpawned, true);
+  assert.ok(next.enemies.some((enemy) => enemy.type === "boss"));
+});
+
+test("defeating boss advances to next stage", () => {
+  const state = toPlaying();
+  state.stage = {
+    number: 2,
+    phase: "boss",
+    phaseElapsedMs: 1000,
+    normalDurationMs: 22000,
+    bossSpawned: true,
+  };
+  state.spawner.timerMs = 99999;
+  state.burst.cooldownRemainingMs = 0;
+  state.enemies = [
+    {
+      id: 200,
+      type: "boss",
+      x: state.player.x + 10,
+      y: state.player.y,
+      radius: 30,
+      speed: 0,
+      hp: 1,
+      maxHp: 1,
+      scoreValue: 260,
+    },
+  ];
+
+  const next = updateGame(
+    state,
+    {
+      ...idleInput(),
+      burst: true,
+    },
+    16,
+    () => 0.99
+  );
+
+  assert.equal(next.stage.phase, "normal");
+  assert.equal(next.stage.number, 3);
+  assert.ok(!next.enemies.some((enemy) => enemy.type === "boss"));
+});
+
+test("spawn interval gets shorter on higher stages", () => {
+  assert.ok(getSpawnIntervalForStage(5) < getSpawnIntervalForStage(1));
 });

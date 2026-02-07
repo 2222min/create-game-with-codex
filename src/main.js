@@ -235,12 +235,19 @@ const loop = createFixedStepLoop({
 const unbindMobileControls = bindMobileControls(input);
 
 window.render_game_to_text = () => {
+  const boss = state.enemies.find((enemy) => enemy.type === "boss");
   const payload = {
     coordinateSystem: "origin=(0,0) top-left, +x right, +y down",
     mode: state.mode,
     elapsedMs: Math.round(state.elapsedMs),
     score: Math.floor(state.score),
     bestScore: Math.floor(state.bestScore),
+    stage: {
+      number: state.stage?.number ?? 1,
+      phase: state.stage?.phase ?? "normal",
+      phaseElapsedMs: Math.round(state.stage?.phaseElapsedMs ?? 0),
+      normalDurationMs: state.stage?.normalDurationMs ?? 22000,
+    },
     player: {
       x: Math.round(state.player.x),
       y: Math.round(state.player.y),
@@ -262,9 +269,12 @@ window.render_game_to_text = () => {
     },
     enemies: state.enemies.map((enemy) => ({
       id: enemy.id,
+      type: enemy.type ?? "normal",
       x: Math.round(enemy.x),
       y: Math.round(enemy.y),
       radius: enemy.radius,
+      hp: enemy.hp ?? 1,
+      maxHp: enemy.maxHp ?? 1,
     })),
     shards: state.shards.map((shard) => ({
       id: shard.id,
@@ -272,6 +282,13 @@ window.render_game_to_text = () => {
       y: Math.round(shard.y),
       radius: shard.radius,
     })),
+    boss: boss
+      ? {
+          id: boss.id,
+          hp: boss.hp ?? 1,
+          maxHp: boss.maxHp ?? 1,
+        }
+      : null,
   };
   return JSON.stringify(payload);
 };

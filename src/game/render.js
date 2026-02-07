@@ -24,15 +24,22 @@ function drawBackground(ctx, width, height, elapsedMs) {
 }
 
 function drawHud(ctx, state) {
+  const stage = state.stage ?? { number: 1, phase: "normal", phaseElapsedMs: 0, normalDurationMs: 22000 };
+  const boss = state.enemies.find((enemy) => enemy.type === "boss");
+
   ctx.fillStyle = "rgba(4, 20, 35, 0.82)";
-  ctx.fillRect(14, 12, 336, 96);
+  ctx.fillRect(14, 12, 390, 128);
   ctx.strokeStyle = "rgba(105, 190, 235, 0.45)";
-  ctx.strokeRect(14, 12, 336, 96);
+  ctx.strokeRect(14, 12, 390, 128);
 
   ctx.fillStyle = "#d9f3ff";
   ctx.font = "16px 'Trebuchet MS', sans-serif";
   ctx.fillText(`HP ${state.player.hp}/${state.player.maxHp}`, 24, 34);
   ctx.fillText(`Score ${Math.floor(state.score)}`, 24, 56);
+  const phaseLabel = stage.phase === "boss" ? "BOSS" : "WAVE";
+  ctx.fillStyle = phaseLabel === "BOSS" ? "#ff9bb7" : "#9ed8f2";
+  ctx.fillText(`Stage ${stage.number} ${phaseLabel}`, 248, 34);
+  ctx.fillStyle = "#d9f3ff";
 
   const meterWidth = 92;
   const progress =
@@ -69,6 +76,22 @@ function drawHud(ctx, state) {
   ctx.fillStyle = "#d9f3ff";
   ctx.font = "11px 'Trebuchet MS', sans-serif";
   ctx.fillText("Chain Window", 150, 68);
+
+  const stageProgress =
+    stage.phase === "normal"
+      ? Math.min(1, stage.phaseElapsedMs / Math.max(1, stage.normalDurationMs))
+      : boss
+        ? Math.max(0, Math.min(1, (boss.maxHp > 0 ? boss.hp / boss.maxHp : 0)))
+        : 0;
+  ctx.fillStyle = "rgba(6, 33, 51, 0.95)";
+  ctx.fillRect(24, 98, 352, 14);
+  ctx.fillStyle = stage.phase === "boss" ? "#ff7a9d" : "#7cb8ff";
+  ctx.fillRect(24, 98, 352 * stageProgress, 14);
+  ctx.strokeStyle = "#77d6f8";
+  ctx.strokeRect(24, 98, 352, 14);
+  ctx.fillStyle = "#d9f3ff";
+  ctx.font = "11px 'Trebuchet MS', sans-serif";
+  ctx.fillText(stage.phase === "boss" ? "Boss HP" : "Wave Progress", 24, 94);
 }
 
 function drawEntities(ctx, state) {
@@ -145,7 +168,7 @@ export function renderGame(ctx, state) {
     drawCenteredPanel(ctx, width, height, "Pulse Drift", [
       "Press Enter/Space or tap START",
       "WASD / Arrow: Move  |  Space: Pulse Burst",
-      "Chain bursts for score multiplier",
+      "Survive waves, then defeat the boss stage",
     ]);
   }
 
