@@ -1,0 +1,44 @@
+{
+  "manifestVersion": 1,
+  "gameId": "rpg-idle-brag",
+  "bundleProfile": "idle-rpg-social",
+  "modules": [
+    {
+      "id": "payment-core",
+      "version": "^1.0.0",
+      "enabled": true,
+      "gameAdapter": "web/src/adapters/payment-adapter.js"
+    },
+    {
+      "id": "economy-wallet",
+      "version": "^1.0.0",
+      "enabled": true,
+      "gameAdapter": "web/src/adapters/wallet-adapter.js"
+    },
+    {
+      "id": "analytics-event-pipeline",
+      "version": "^1.0.0",
+      "enabled": true,
+      "gameAdapter": "web/src/adapters/analytics-adapter.js"
+    },
+    {
+      "id": "social-guild-and-leaderboard",
+      "version": "^1.0.0",
+      "enabled": true,
+      "gameAdapter": "web/src/adapters/social-adapter.js"
+    },
+    {
+      "id": "liveops-season-pass",
+      "version": "^1.0.0",
+      "enabled": true,
+      "gameAdapter": "web/src/adapters/liveops-adapter.js"
+    }
+  ],
+  "kpiTargets": {
+    "d1Retention": 0.3,
+    "d7Retention": 0.1,
+    "firstWeekPayerConversion": 0.015,
+    "shareRate": 0.2
+  },
+  "notes": "Cycle 01 keeps all payment and social logic in shared modules. Game code only uses adapters."
+}

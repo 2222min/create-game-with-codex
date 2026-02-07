@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Guild Idle Chronicle - RPG UI Prototype</title>
+    <style>
+      :root {
+        --page-bg-a: #120d08;
+        --page-bg-b: #2a1c10;
+        --page-bg-c: #0b0806;
+        --frame-gold: #9e763e;
+        --frame-dark: #24180f;
+        --text-main: #f2debe;
+        --text-sub: #c7ab7d;
+        --button-bg: #3a2819;
+        --button-border: #a17a42;
+        --button-active: #6e4724;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      body {
+        font-family: "Trebuchet MS", "Verdana", sans-serif;
+        color: var(--text-main);
+        background:
+          radial-gradient(circle at 18% 5%, rgba(255, 210, 130, 0.2), transparent 34%),
+          radial-gradient(circle at 82% 20%, rgba(127, 95, 56, 0.26), transparent 38%),
+          linear-gradient(160deg, var(--page-bg-a), var(--page-bg-b) 45%, var(--page-bg-c));
+        display: grid;
+        place-items: center;
+        padding: 14px;
+      }
+
+      .app-shell {
+        width: min(1060px, 100%);
+        border: 2px solid var(--frame-gold);
+        background: rgba(13, 9, 6, 0.86);
+        box-shadow: 0 22px 62px rgba(0, 0, 0, 0.55);
+        padding: 10px;
+      }
+
+      .app-header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 2px 2px 8px;
+      }
+
+      .title {
+        margin: 0;
+        font-size: clamp(18px, 2.6vw, 24px);
+        letter-spacing: 0.03em;
+      }
+
+      .subtitle {
+        margin: 0;
+        color: var(--text-sub);
+        font-size: clamp(12px, 1.7vw, 14px);
+      }
+
+      .stage {
+        border: 2px solid var(--frame-gold);
+        background: var(--frame-dark);
+        overflow: hidden;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+        aspect-ratio: 16 / 9;
+        background: #110c09;
+        touch-action: manipulation;
+      }
+
+      .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .action-btn {
+        border: 1px solid var(--button-border);
+        background: var(--button-bg);
+        color: #f8e8c8;
+        font-size: 12px;
+        font-weight: 700;
+        min-height: 40px;
+        cursor: pointer;
+      }
+
+      .action-btn:active {
+        background: var(--button-active);
+      }
+
+      .hint {
+        margin-top: 8px;
+        color: #d6be8f;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      @media (max-width: 780px) {
+        .app-shell {
+          padding: 8px;
+        }
+
+        .quick-actions {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 6px;
+        }
+
+        .action-btn {
+          min-height: 36px;
+          font-size: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <h1 class="title">Guild Idle Chronicle</h1>
+        <p class="subtitle">RPG UI Prototype</p>
+      </header>
+
+      <section class="stage">
+        <canvas id="game-canvas" width="1024" height="576"></canvas>
+      </section>
+
+      <section class="quick-actions" id="quick-actions" aria-label="빠른 조작 버튼">
+        <button class="action-btn" type="button" data-action="start">시작 / 재시작</button>
+        <button class="action-btn" type="button" data-action="buyAttack">공격 강화</button>
+        <button class="action-btn" type="button" data-action="buyHealth">체력 강화</button>
+        <button class="action-btn" type="button" data-action="buyCrit">치명 강화</button>
+        <button class="action-btn" type="button" data-action="claimChest">상자 수령</button>
+        <button class="action-btn" type="button" data-action="checkoutOrConvenience">스타터팩 / 편의 슬롯</button>
+        <button class="action-btn" type="button" data-action="submitScore">랭킹 제출</button>
+        <button class="action-btn" type="button" data-action="generateBragCard">자랑 카드</button>
+      </section>
+
+      <p class="hint">
+        원본 에셋은 사용하지 않고, 요청한 레퍼런스의 분위기/구조만 캔버스 기반으로 재현한 1차 프로토타입입니다.
+      </p>
+    </main>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

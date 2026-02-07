@@ -135,3 +135,23 @@ Original prompt: 안녕. 좋은 아침이야. 나느 게임 개발자가 아니�
   - `tests/playwright-actions-stage-boss.json`
   - artifact: `output/web-game-stage-boss-check`
 - Confirmed no runtime launch/test errors in successful Playwright run.
+
+## 2026-02-07 (RPG Idle Rebuild + Reference-Style UI Reimplementation)
+
+- Recreated deleted `projects/rpg-idle-brag` directory from prior known commit snapshot data.
+- Reapplied web client structure and restored gameplay domain files under:
+  - `projects/rpg-idle-brag/web/src/*`
+- Reimplemented reference-inspired RPG panel UI (canvas, 4-quadrant layout):
+  - `projects/rpg-idle-brag/web/index.html`
+  - `projects/rpg-idle-brag/web/src/game/render.js`
+- Rebound on-screen quick actions for touch/mouse testing:
+  - `projects/rpg-idle-brag/web/src/main.js`
+- Fixed major text overlap in lower-left and lower-right panels after screenshot review.
+
+Validation:
+- `node --test projects/rpg-idle-brag/web/tests/update.test.js` (pass)
+- Playwright runs:
+  - `output/rpg-idle-brag-ui-style`
+  - `output/rpg-idle-brag-ui-style-v2`
+  - `output/rpg-idle-brag-ui-style-v3`
+- Final screenshots reviewed from `output/rpg-idle-brag-ui-style-v3`.
