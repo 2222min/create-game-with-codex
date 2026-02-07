@@ -93,3 +93,22 @@ Original prompt: 안녕. 좋은 아침이야. 나느 게임 개발자가 아니�
 - Updated in-game panel text for touch start/restart hints in `src/game/render.js`.
 - Re-validated with tests and Playwright artifacts:
   - `output/web-game-mobile-check`
+
+## 2026-02-07 (Mobile Joystick Upgrade)
+
+- Replaced tap arrow movement with drag joystick movement.
+- Updated `src/game/input.js` to support axis-based virtual movement.
+- Updated `src/main.js` mobile binding to joystick base/knob pointer tracking.
+- Updated mobile control UI in `index.html` and tester doc in `README.md`.
+- Re-validated with Playwright artifact:
+  - `output/web-game-joystick-check`
+
+## 2026-02-07 (Kakao In-app Browser Compatibility Fix)
+
+- Updated mobile controls in `src/main.js` to support:
+  - `pointer` events
+  - `touch` fallback (non-pointer webviews)
+  - `mouse` fallback
+- Added runtime `force-visible` control mode for touch-capable environments.
+- Confirmed regression checks and artifacts:
+  - `output/web-game-kakao-compat`

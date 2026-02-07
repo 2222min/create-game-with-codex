@@ -30,11 +30,14 @@ This repository already includes auto deploy workflow:
 
 Mobile:
 - On-screen touch controls are shown automatically.
-- D-pad: move
+- Left joystick drag: move
 - `START`: game start
 - `BURST`: pulse burst
 - `RESTART`: restart after game over
 - `FULLSCREEN`: toggle fullscreen
+
+Compatibility:
+- Mobile input supports `pointer`, `touch`, and `mouse` fallback paths for in-app webviews (including Kakao in-app browser).
 
 Check point:
 - `Chain xN / Mult xM` should rise after consecutive successful bursts.

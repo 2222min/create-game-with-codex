@@ -9,8 +9,17 @@ const HOLD_KEYS = {
   KeyS: "down",
 };
 
+const DIRECTIONS = ["left", "right", "up", "down"];
+const AXIS_THRESHOLD = 0.28;
+
 export function createInputAdapter() {
-  const held = {
+  const keyboardHeld = {
+    left: false,
+    right: false,
+    up: false,
+    down: false,
+  };
+  const virtualHeld = {
     left: false,
     right: false,
     up: false,
@@ -23,9 +32,22 @@ export function createInputAdapter() {
     toggleFullscreen: false,
   };
 
-  function setHold(direction, value) {
-    if (!(direction in held)) return;
-    held[direction] = value;
+  function setHold(direction, value, source = "virtual") {
+    if (!DIRECTIONS.includes(direction)) return;
+    if (source === "keyboard") {
+      keyboardHeld[direction] = value;
+      return;
+    }
+    virtualHeld[direction] = value;
+  }
+
+  function setAxes(x, y) {
+    const nx = Math.max(-1, Math.min(1, Number.isFinite(x) ? x : 0));
+    const ny = Math.max(-1, Math.min(1, Number.isFinite(y) ? y : 0));
+    setHold("left", nx <= -AXIS_THRESHOLD, "virtual");
+    setHold("right", nx >= AXIS_THRESHOLD, "virtual");
+    setHold("up", ny <= -AXIS_THRESHOLD, "virtual");
+    setHold("down", ny >= AXIS_THRESHOLD, "virtual");
   }
 
   function press(action) {
@@ -50,7 +72,7 @@ export function createInputAdapter() {
   function onKeyDown(event) {
     const mapped = HOLD_KEYS[event.code];
     if (mapped) {
-      setHold(mapped, true);
+      setHold(mapped, true, "keyboard");
       event.preventDefault();
     }
     if (!event.repeat) {
@@ -72,7 +94,7 @@ export function createInputAdapter() {
   function onKeyUp(event) {
     const mapped = HOLD_KEYS[event.code];
     if (mapped) {
-      setHold(mapped, false);
+      setHold(mapped, false, "keyboard");
       event.preventDefault();
     }
   }
@@ -82,13 +104,14 @@ export function createInputAdapter() {
 
   return {
     setHold,
+    setAxes,
     press,
     poll() {
       const out = {
-        left: held.left,
-        right: held.right,
-        up: held.up,
-        down: held.down,
+        left: keyboardHeld.left || virtualHeld.left,
+        right: keyboardHeld.right || virtualHeld.right,
+        up: keyboardHeld.up || virtualHeld.up,
+        down: keyboardHeld.down || virtualHeld.down,
         burst: oneShot.burst,
         start: oneShot.start,
         restart: oneShot.restart,

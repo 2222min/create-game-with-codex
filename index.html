@@ -83,6 +83,90 @@
         display: none;
       }
 
+      .mobile-controls.force-visible {
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: minmax(140px, 42%) 1fr;
+        gap: 10px;
+        align-items: end;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      .mobile-controls.force-visible .joystick-area {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      .mobile-controls.force-visible .joystick-base {
+        width: min(38vw, 148px);
+        aspect-ratio: 1 / 1;
+        border-radius: 999px;
+        border: 1px solid rgba(136, 215, 255, 0.58);
+        background: radial-gradient(circle at 35% 30%, rgba(23, 85, 118, 0.95), rgba(8, 33, 50, 0.95));
+        position: relative;
+        touch-action: none;
+        box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.4);
+      }
+
+      .mobile-controls.force-visible .joystick-base.active {
+        border-color: rgba(137, 245, 255, 0.9);
+        box-shadow: inset 0 0 28px rgba(102, 232, 255, 0.28);
+      }
+
+      .mobile-controls.force-visible .joystick-knob {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: min(16vw, 56px);
+        aspect-ratio: 1 / 1;
+        border-radius: 999px;
+        transform: translate(-50%, -50%);
+        border: 1px solid rgba(203, 242, 255, 0.8);
+        background: radial-gradient(circle at 35% 30%, rgba(114, 225, 255, 0.95), rgba(49, 156, 196, 0.95));
+        pointer-events: none;
+      }
+
+      .mobile-controls.force-visible .joystick-hint {
+        margin: 0;
+        font-size: 11px;
+        color: #9bc8dc;
+      }
+
+      .mobile-controls.force-visible .action-pad {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .mobile-controls.force-visible .control-btn {
+        border: 1px solid rgba(136, 215, 255, 0.58);
+        background: rgba(8, 39, 59, 0.92);
+        color: #d8f3ff;
+        border-radius: 10px;
+        padding: 10px 8px;
+        font-size: 16px;
+        font-weight: 700;
+        min-height: 46px;
+        touch-action: none;
+      }
+
+      .mobile-controls.force-visible .control-btn.active {
+        background: rgba(66, 171, 217, 0.92);
+        color: #001824;
+      }
+
+      .mobile-controls.force-visible .control-btn-primary {
+        background: rgba(31, 132, 173, 0.94);
+        border-color: rgba(149, 234, 255, 0.9);
+      }
+
+      .mobile-controls.force-visible .control-btn-wide {
+        grid-column: span 2;
+      }
+
       @media (hover: none), (pointer: coarse), (max-width: 900px) {
         .layout {
           padding: 12px;
@@ -109,19 +193,53 @@
         .mobile-controls {
           margin-top: 12px;
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: minmax(140px, 42%) 1fr;
           gap: 10px;
+          align-items: end;
           user-select: none;
           -webkit-user-select: none;
         }
 
-        .dpad {
-          display: grid;
+        .joystick-area {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
           gap: 8px;
-          grid-template-columns: 1fr 1fr 1fr;
-          grid-template-areas:
-            ". up ."
-            "left down right";
+        }
+
+        .joystick-base {
+          width: min(38vw, 148px);
+          aspect-ratio: 1 / 1;
+          border-radius: 999px;
+          border: 1px solid rgba(136, 215, 255, 0.58);
+          background: radial-gradient(circle at 35% 30%, rgba(23, 85, 118, 0.95), rgba(8, 33, 50, 0.95));
+          position: relative;
+          touch-action: none;
+          box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.4);
+        }
+
+        .joystick-base.active {
+          border-color: rgba(137, 245, 255, 0.9);
+          box-shadow: inset 0 0 28px rgba(102, 232, 255, 0.28);
+        }
+
+        .joystick-knob {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: min(16vw, 56px);
+          aspect-ratio: 1 / 1;
+          border-radius: 999px;
+          transform: translate(-50%, -50%);
+          border: 1px solid rgba(203, 242, 255, 0.8);
+          background: radial-gradient(circle at 35% 30%, rgba(114, 225, 255, 0.95), rgba(49, 156, 196, 0.95));
+          pointer-events: none;
+        }
+
+        .joystick-hint {
+          margin: 0;
+          font-size: 11px;
+          color: #9bc8dc;
         }
 
         .action-pad {
@@ -147,24 +265,24 @@
           color: #001824;
         }
 
-        .control-up {
-          grid-area: up;
-        }
-
-        .control-left {
-          grid-area: left;
-        }
-
-        .control-down {
-          grid-area: down;
-        }
-
-        .control-right {
-          grid-area: right;
+        .control-btn-primary {
+          background: rgba(31, 132, 173, 0.94);
+          border-color: rgba(149, 234, 255, 0.9);
         }
 
         .control-btn-wide {
           grid-column: span 2;
+        }
+
+        @media (max-width: 560px) {
+          .mobile-controls {
+            grid-template-columns: 1fr;
+            gap: 12px;
+          }
+
+          .joystick-area {
+            align-items: center;
+          }
         }
       }
     </style>
@@ -184,15 +302,17 @@
           <span class="tag">Fullscreen: F</span>
         </div>
         <section class="mobile-controls" id="mobile-controls" aria-label="Mobile touch controls">
-          <div class="dpad">
-            <button class="control-btn control-up" type="button" data-hold="up">▲</button>
-            <button class="control-btn control-left" type="button" data-hold="left">◀</button>
-            <button class="control-btn control-down" type="button" data-hold="down">▼</button>
-            <button class="control-btn control-right" type="button" data-hold="right">▶</button>
+          <div class="joystick-area">
+            <div class="joystick-base" id="joystick-base" aria-label="Move joystick">
+              <div class="joystick-knob" id="joystick-knob"></div>
+            </div>
+            <p class="joystick-hint">왼손으로 드래그해서 이동</p>
           </div>
           <div class="action-pad">
-            <button class="control-btn control-btn-wide" type="button" data-press="start">START</button>
-            <button class="control-btn" type="button" data-press="burst">BURST</button>
+            <button class="control-btn control-btn-wide control-btn-primary" type="button" data-press="burst">
+              BURST
+            </button>
+            <button class="control-btn" type="button" data-press="start">START</button>
             <button class="control-btn" type="button" data-press="restart">RESTART</button>
             <button class="control-btn control-btn-wide" type="button" data-press="toggleFullscreen">
               FULLSCREEN

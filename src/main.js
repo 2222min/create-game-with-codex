@@ -24,40 +24,146 @@ function bindMobileControls(inputAdapter) {
   if (!root) return () => {};
 
   const cleaners = [];
+  const supportsPointer = typeof window !== "undefined" && "PointerEvent" in window;
+  const touchCapable =
+    typeof navigator !== "undefined" &&
+    (navigator.maxTouchPoints > 0 || "ontouchstart" in window);
 
-  function addListener(element, type, handler) {
-    element.addEventListener(type, handler);
-    cleaners.push(() => element.removeEventListener(type, handler));
+  if (touchCapable) {
+    root.classList.add("force-visible");
   }
 
-  const holdButtons = root.querySelectorAll("[data-hold]");
-  for (const button of holdButtons) {
-    if (!(button instanceof HTMLButtonElement)) continue;
-    const direction = button.dataset.hold;
-    if (!direction) continue;
-    let pointerId = null;
+  function addListener(element, type, handler, options) {
+    element.addEventListener(type, handler, options);
+    cleaners.push(() => element.removeEventListener(type, handler, options));
+  }
 
-    const activate = (event) => {
-      pointerId = event.pointerId;
-      button.classList.add("active");
-      if (button.setPointerCapture) button.setPointerCapture(event.pointerId);
-      inputAdapter.setHold(direction, true);
-      event.preventDefault();
+  function findTouchById(touchList, id) {
+    for (let i = 0; i < touchList.length; i += 1) {
+      if (touchList[i].identifier === id) return touchList[i];
+    }
+    return null;
+  }
+
+  const joystickBase = root.querySelector("#joystick-base");
+  const joystickKnob = root.querySelector("#joystick-knob");
+  if (joystickBase instanceof HTMLElement && joystickKnob instanceof HTMLElement) {
+    let joystickPointerId = null;
+    let joystickTouchId = null;
+    let mouseDragging = false;
+
+    const resetJoystick = () => {
+      inputAdapter.setAxes(0, 0);
+      joystickBase.classList.remove("active");
+      joystickKnob.style.transform = "translate(-50%, -50%)";
     };
 
-    const deactivate = (event) => {
-      if (pointerId !== null && event.pointerId !== pointerId) return;
-      pointerId = null;
-      button.classList.remove("active");
-      inputAdapter.setHold(direction, false);
-      event.preventDefault();
+    const updateJoystick = (clientX, clientY) => {
+      const rect = joystickBase.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const maxRadius = rect.width * 0.38;
+      const dx = clientX - centerX;
+      const dy = clientY - centerY;
+      const distance = Math.hypot(dx, dy);
+      const clampedDistance = Math.min(distance, maxRadius);
+      const ratio = distance > 0 ? clampedDistance / distance : 0;
+      const clampedDx = dx * ratio;
+      const clampedDy = dy * ratio;
+      const normalizedX = maxRadius > 0 ? clampedDx / maxRadius : 0;
+      const normalizedY = maxRadius > 0 ? clampedDy / maxRadius : 0;
+      inputAdapter.setAxes(normalizedX, normalizedY);
+      joystickKnob.style.transform = `translate(calc(-50% + ${clampedDx}px), calc(-50% + ${clampedDy}px))`;
     };
 
-    addListener(button, "pointerdown", activate);
-    addListener(button, "pointerup", deactivate);
-    addListener(button, "pointercancel", deactivate);
-    addListener(button, "lostpointercapture", deactivate);
-    addListener(button, "contextmenu", (event) => event.preventDefault());
+    const startJoystick = (clientX, clientY) => {
+      joystickBase.classList.add("active");
+      updateJoystick(clientX, clientY);
+    };
+
+    if (supportsPointer) {
+      const onJoystickDown = (event) => {
+        joystickPointerId = event.pointerId;
+        if (joystickBase.setPointerCapture) joystickBase.setPointerCapture(event.pointerId);
+        startJoystick(event.clientX, event.clientY);
+        event.preventDefault();
+      };
+
+      const onJoystickMove = (event) => {
+        if (joystickPointerId === null || event.pointerId !== joystickPointerId) return;
+        updateJoystick(event.clientX, event.clientY);
+        event.preventDefault();
+      };
+
+      const onJoystickUp = (event) => {
+        if (joystickPointerId === null || event.pointerId !== joystickPointerId) return;
+        joystickPointerId = null;
+        resetJoystick();
+        event.preventDefault();
+      };
+
+      addListener(joystickBase, "pointerdown", onJoystickDown);
+      addListener(joystickBase, "pointermove", onJoystickMove);
+      addListener(joystickBase, "pointerup", onJoystickUp);
+      addListener(joystickBase, "pointercancel", onJoystickUp);
+      addListener(joystickBase, "lostpointercapture", onJoystickUp);
+    } else {
+      const onTouchStart = (event) => {
+        const touch = event.changedTouches[0];
+        if (!touch) return;
+        joystickTouchId = touch.identifier;
+        startJoystick(touch.clientX, touch.clientY);
+        event.preventDefault();
+      };
+
+      const onTouchMove = (event) => {
+        if (joystickTouchId === null) return;
+        const touch =
+          findTouchById(event.changedTouches, joystickTouchId) ||
+          findTouchById(event.touches, joystickTouchId);
+        if (!touch) return;
+        updateJoystick(touch.clientX, touch.clientY);
+        event.preventDefault();
+      };
+
+      const onTouchEnd = (event) => {
+        if (joystickTouchId === null) return;
+        const endedTouch = findTouchById(event.changedTouches, joystickTouchId);
+        if (!endedTouch) return;
+        joystickTouchId = null;
+        resetJoystick();
+        event.preventDefault();
+      };
+
+      const onMouseDown = (event) => {
+        mouseDragging = true;
+        startJoystick(event.clientX, event.clientY);
+        event.preventDefault();
+      };
+
+      const onMouseMove = (event) => {
+        if (!mouseDragging) return;
+        updateJoystick(event.clientX, event.clientY);
+        event.preventDefault();
+      };
+
+      const onMouseUp = (event) => {
+        if (!mouseDragging) return;
+        mouseDragging = false;
+        resetJoystick();
+        event.preventDefault();
+      };
+
+      addListener(joystickBase, "touchstart", onTouchStart, { passive: false });
+      addListener(joystickBase, "touchmove", onTouchMove, { passive: false });
+      addListener(joystickBase, "touchend", onTouchEnd, { passive: false });
+      addListener(joystickBase, "touchcancel", onTouchEnd, { passive: false });
+      addListener(joystickBase, "mousedown", onMouseDown);
+      addListener(window, "mousemove", onMouseMove);
+      addListener(window, "mouseup", onMouseUp);
+    }
+    addListener(joystickBase, "contextmenu", (event) => event.preventDefault());
+    cleaners.push(resetJoystick);
   }
 
   const pressButtons = root.querySelectorAll("[data-press]");
@@ -66,19 +172,31 @@ function bindMobileControls(inputAdapter) {
     const action = button.dataset.press;
     if (!action) continue;
 
-    const onPointerDown = (event) => {
+    const activate = (event) => {
       button.classList.add("active");
       inputAdapter.press(action);
       event.preventDefault();
     };
-    const onPointerUp = (event) => {
+
+    const deactivate = (event) => {
       button.classList.remove("active");
       event.preventDefault();
     };
 
-    addListener(button, "pointerdown", onPointerDown);
-    addListener(button, "pointerup", onPointerUp);
-    addListener(button, "pointercancel", onPointerUp);
+    if (supportsPointer) {
+      addListener(button, "pointerdown", activate);
+      addListener(button, "pointerup", deactivate);
+      addListener(button, "pointercancel", deactivate);
+      addListener(button, "pointerleave", deactivate);
+    } else {
+      addListener(button, "touchstart", activate, { passive: false });
+      addListener(button, "touchend", deactivate, { passive: false });
+      addListener(button, "touchcancel", deactivate, { passive: false });
+      addListener(button, "mousedown", activate);
+      addListener(button, "mouseup", deactivate);
+      addListener(button, "mouseleave", deactivate);
+    }
+    addListener(button, "click", (event) => event.preventDefault());
     addListener(button, "contextmenu", (event) => event.preventDefault());
   }
 
