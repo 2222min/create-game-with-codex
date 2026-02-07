@@ -143,7 +143,7 @@ export function renderGame(ctx, state) {
 
   if (state.mode === "start") {
     drawCenteredPanel(ctx, width, height, "Pulse Drift", [
-      "Press Enter or Space to Start",
+      "Press Enter/Space or tap START",
       "WASD / Arrow: Move  |  Space: Pulse Burst",
       "Chain bursts for score multiplier",
     ]);
@@ -152,7 +152,7 @@ export function renderGame(ctx, state) {
   if (state.mode === "gameover") {
     drawCenteredPanel(ctx, width, height, "Game Over", [
       `Score ${Math.floor(state.score)}  |  Best ${Math.floor(state.bestScore)}`,
-      "Press R or Enter to Restart",
+      "Press R/Enter or tap RESTART",
     ]);
   }
 }

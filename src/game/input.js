@@ -23,25 +23,48 @@ export function createInputAdapter() {
     toggleFullscreen: false,
   };
 
+  function setHold(direction, value) {
+    if (!(direction in held)) return;
+    held[direction] = value;
+  }
+
+  function press(action) {
+    if (action === "burst") {
+      oneShot.burst = true;
+      oneShot.start = true;
+      return;
+    }
+    if (action === "start") {
+      oneShot.start = true;
+      return;
+    }
+    if (action === "restart") {
+      oneShot.restart = true;
+      return;
+    }
+    if (action === "toggleFullscreen") {
+      oneShot.toggleFullscreen = true;
+    }
+  }
+
   function onKeyDown(event) {
     const mapped = HOLD_KEYS[event.code];
     if (mapped) {
-      held[mapped] = true;
+      setHold(mapped, true);
       event.preventDefault();
     }
     if (!event.repeat) {
       if (event.code === "Space") {
-        oneShot.burst = true;
-        oneShot.start = true;
+        press("burst");
         event.preventDefault();
       } else if (event.code === "Enter") {
-        oneShot.start = true;
-        oneShot.restart = true;
+        press("start");
+        press("restart");
         event.preventDefault();
       } else if (event.code === "KeyR") {
-        oneShot.restart = true;
+        press("restart");
       } else if (event.code === "KeyF") {
-        oneShot.toggleFullscreen = true;
+        press("toggleFullscreen");
       }
     }
   }
@@ -49,7 +72,7 @@ export function createInputAdapter() {
   function onKeyUp(event) {
     const mapped = HOLD_KEYS[event.code];
     if (mapped) {
-      held[mapped] = false;
+      setHold(mapped, false);
       event.preventDefault();
     }
   }
@@ -58,6 +81,8 @@ export function createInputAdapter() {
   window.addEventListener("keyup", onKeyUp);
 
   return {
+    setHold,
+    press,
     poll() {
       const out = {
         left: held.left,

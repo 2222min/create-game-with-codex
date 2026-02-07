@@ -28,6 +28,14 @@ This repository already includes auto deploy workflow:
 - Restart: `R` or `Enter` (after game over)
 - Fullscreen: `F`
 
+Mobile:
+- On-screen touch controls are shown automatically.
+- D-pad: move
+- `START`: game start
+- `BURST`: pulse burst
+- `RESTART`: restart after game over
+- `FULLSCREEN`: toggle fullscreen
+
 Check point:
 - `Chain xN / Mult xM` should rise after consecutive successful bursts.
 

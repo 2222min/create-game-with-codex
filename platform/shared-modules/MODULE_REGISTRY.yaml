@@ -1,0 +1,96 @@
+registry_version: 1
+policy:
+  default_module_versioning: semver
+  compatibility_mode: backward_compatible_minor
+  required_manifest_file: projects/<game-id>/platform-manifest.json
+
+modules:
+  - id: payment-core
+    version: 1.0.0
+    domain: monetization
+    status: active
+    owner: platform-team
+    contract: contracts/payment-core.md
+    owns:
+      - product_catalog
+      - checkout_intent
+      - entitlement_grant
+      - refund_revoke
+    exports:
+      - PaymentService.startCheckout
+      - PaymentService.restorePurchases
+      - PaymentService.getEntitlements
+      - event.payment.completed
+      - event.payment.failed
+
+  - id: economy-wallet
+    version: 1.0.0
+    domain: economy
+    status: active
+    owner: platform-team
+    contract: contracts/economy-wallet.md
+    owns:
+      - soft_currency_balance
+      - premium_currency_balance
+      - transaction_ledger
+    exports:
+      - WalletService.credit
+      - WalletService.debit
+      - WalletService.getBalance
+      - event.wallet.changed
+
+  - id: analytics-event-pipeline
+    version: 1.0.0
+    domain: analytics
+    status: active
+    owner: platform-team
+    contract: contracts/analytics-event-pipeline.md
+    owns:
+      - event_schema
+      - event_validation
+      - event_dispatch
+    exports:
+      - Analytics.track
+      - Analytics.trackRevenue
+      - Analytics.trackFunnelStep
+
+  - id: social-guild-and-leaderboard
+    version: 1.0.0
+    domain: social
+    status: active
+    owner: platform-team
+    contract: contracts/social-guild-and-leaderboard.md
+    owns:
+      - friend_code
+      - guild_membership
+      - season_leaderboard
+      - brag_card_metadata
+    exports:
+      - SocialService.joinGuild
+      - SocialService.submitScore
+      - SocialService.getLeaderboard
+      - SocialService.generateBragCardData
+
+  - id: liveops-season-pass
+    version: 1.0.0
+    domain: liveops
+    status: active
+    owner: platform-team
+    contract: contracts/liveops-season-pass.md
+    owns:
+      - season_timeline
+      - mission_progress
+      - pass_reward_track
+    exports:
+      - LiveOpsService.getActiveSeason
+      - LiveOpsService.claimMissionReward
+      - LiveOpsService.claimPassTierReward
+
+recommended_bundle_profiles:
+  - id: idle-rpg-social
+    modules:
+      - payment-core
+      - economy-wallet
+      - analytics-event-pipeline
+      - social-guild-and-leaderboard
+      - liveops-season-pass

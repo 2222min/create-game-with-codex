@@ -1,0 +1,4 @@
+interface:
+  display_name: "Game Studio Factory"
+  short_description: "Reusable monetization module orchestration"
+  default_prompt: "Set up or update a game project to reuse shared platform modules with low context cost."

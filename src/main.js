@@ -19,6 +19,74 @@ const input = createInputAdapter();
 let state = createInitialGameState();
 let manualStepping = false;
 
+function bindMobileControls(inputAdapter) {
+  const root = document.getElementById("mobile-controls");
+  if (!root) return () => {};
+
+  const cleaners = [];
+
+  function addListener(element, type, handler) {
+    element.addEventListener(type, handler);
+    cleaners.push(() => element.removeEventListener(type, handler));
+  }
+
+  const holdButtons = root.querySelectorAll("[data-hold]");
+  for (const button of holdButtons) {
+    if (!(button instanceof HTMLButtonElement)) continue;
+    const direction = button.dataset.hold;
+    if (!direction) continue;
+    let pointerId = null;
+
+    const activate = (event) => {
+      pointerId = event.pointerId;
+      button.classList.add("active");
+      if (button.setPointerCapture) button.setPointerCapture(event.pointerId);
+      inputAdapter.setHold(direction, true);
+      event.preventDefault();
+    };
+
+    const deactivate = (event) => {
+      if (pointerId !== null && event.pointerId !== pointerId) return;
+      pointerId = null;
+      button.classList.remove("active");
+      inputAdapter.setHold(direction, false);
+      event.preventDefault();
+    };
+
+    addListener(button, "pointerdown", activate);
+    addListener(button, "pointerup", deactivate);
+    addListener(button, "pointercancel", deactivate);
+    addListener(button, "lostpointercapture", deactivate);
+    addListener(button, "contextmenu", (event) => event.preventDefault());
+  }
+
+  const pressButtons = root.querySelectorAll("[data-press]");
+  for (const button of pressButtons) {
+    if (!(button instanceof HTMLButtonElement)) continue;
+    const action = button.dataset.press;
+    if (!action) continue;
+
+    const onPointerDown = (event) => {
+      button.classList.add("active");
+      inputAdapter.press(action);
+      event.preventDefault();
+    };
+    const onPointerUp = (event) => {
+      button.classList.remove("active");
+      event.preventDefault();
+    };
+
+    addListener(button, "pointerdown", onPointerDown);
+    addListener(button, "pointerup", onPointerUp);
+    addListener(button, "pointercancel", onPointerUp);
+    addListener(button, "contextmenu", (event) => event.preventDefault());
+  }
+
+  return () => {
+    for (const clean of cleaners) clean();
+  };
+}
+
 function toggleFullscreen() {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen().catch(() => {});
@@ -45,6 +113,7 @@ const loop = createFixedStepLoop({
   },
   render,
 });
+const unbindMobileControls = bindMobileControls(input);
 
 window.render_game_to_text = () => {
   const payload = {
@@ -99,6 +168,7 @@ window.advanceTime = (ms) => {
 };
 
 window.addEventListener("beforeunload", () => {
+  unbindMobileControls();
   input.destroy();
   loop.stop();
 });

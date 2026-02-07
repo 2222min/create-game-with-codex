@@ -20,6 +20,7 @@
         font-family: "Trebuchet MS", "Segoe UI", sans-serif;
         color: var(--text);
         background: radial-gradient(circle at 20% 10%, #0d3650 0%, var(--bg-a) 45%, #010b13 100%);
+        touch-action: manipulation;
       }
 
       .layout {
@@ -77,6 +78,95 @@
         padding: 4px 8px;
         border-radius: 999px;
       }
+
+      .mobile-controls {
+        display: none;
+      }
+
+      @media (hover: none), (pointer: coarse), (max-width: 900px) {
+        .layout {
+          padding: 12px;
+        }
+
+        .title {
+          font-size: clamp(22px, 8vw, 32px);
+        }
+
+        .subtitle {
+          margin-bottom: 10px;
+        }
+
+        .canvas-wrap {
+          border-radius: 10px;
+        }
+
+        .footer {
+          margin-top: 8px;
+          gap: 6px;
+          font-size: 12px;
+        }
+
+        .mobile-controls {
+          margin-top: 12px;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          user-select: none;
+          -webkit-user-select: none;
+        }
+
+        .dpad {
+          display: grid;
+          gap: 8px;
+          grid-template-columns: 1fr 1fr 1fr;
+          grid-template-areas:
+            ". up ."
+            "left down right";
+        }
+
+        .action-pad {
+          display: grid;
+          gap: 8px;
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .control-btn {
+          border: 1px solid rgba(136, 215, 255, 0.58);
+          background: rgba(8, 39, 59, 0.92);
+          color: #d8f3ff;
+          border-radius: 10px;
+          padding: 10px 8px;
+          font-size: 16px;
+          font-weight: 700;
+          min-height: 46px;
+          touch-action: none;
+        }
+
+        .control-btn.active {
+          background: rgba(66, 171, 217, 0.92);
+          color: #001824;
+        }
+
+        .control-up {
+          grid-area: up;
+        }
+
+        .control-left {
+          grid-area: left;
+        }
+
+        .control-down {
+          grid-area: down;
+        }
+
+        .control-right {
+          grid-area: right;
+        }
+
+        .control-btn-wide {
+          grid-column: span 2;
+        }
+      }
     </style>
   </head>
   <body>
@@ -93,6 +183,22 @@
           <span class="tag">Restart: R</span>
           <span class="tag">Fullscreen: F</span>
         </div>
+        <section class="mobile-controls" id="mobile-controls" aria-label="Mobile touch controls">
+          <div class="dpad">
+            <button class="control-btn control-up" type="button" data-hold="up">▲</button>
+            <button class="control-btn control-left" type="button" data-hold="left">◀</button>
+            <button class="control-btn control-down" type="button" data-hold="down">▼</button>
+            <button class="control-btn control-right" type="button" data-hold="right">▶</button>
+          </div>
+          <div class="action-pad">
+            <button class="control-btn control-btn-wide" type="button" data-press="start">START</button>
+            <button class="control-btn" type="button" data-press="burst">BURST</button>
+            <button class="control-btn" type="button" data-press="restart">RESTART</button>
+            <button class="control-btn control-btn-wide" type="button" data-press="toggleFullscreen">
+              FULLSCREEN
+            </button>
+          </div>
+        </section>
       </main>
     </div>
     <script type="module" src="./src/main.js"></script>

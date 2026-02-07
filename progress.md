@@ -53,3 +53,43 @@ Original prompt: 안녕. 좋은 아침이야. 나느 게임 개발자가 아니�
 - Added GitHub Pages auto deploy workflow:
   - `.github/workflows/deploy-pages.yml`
 - Documented one-link sharing flow for non-developer testers.
+
+## 2026-02-07 (New RPG Idle Project Kickoff)
+
+- Created separate project directory:
+  - `projects/rpg-idle-brag/`
+- Added planner kickoff:
+  - `projects/rpg-idle-brag/docs/planner-kickoff-v1.md`
+- Added market skepticism review:
+  - `projects/rpg-idle-brag/docs/market-skeptic-v1.md`
+- Added first milestone scope:
+  - `projects/rpg-idle-brag/docs/milestone-cycle-01.md`
+
+## 2026-02-07 (Factory Reuse Foundation)
+
+- Added shared module platform registry:
+  - `platform/shared-modules/MODULE_REGISTRY.yaml`
+- Added module contracts:
+  - `platform/shared-modules/contracts/payment-core.md`
+  - `platform/shared-modules/contracts/economy-wallet.md`
+  - `platform/shared-modules/contracts/analytics-event-pipeline.md`
+  - `platform/shared-modules/contracts/social-guild-and-leaderboard.md`
+  - `platform/shared-modules/contracts/liveops-season-pass.md`
+- Added per-game platform manifest template:
+  - `platform/templates/game-platform-manifest.json`
+- Added game-specific manifest:
+  - `projects/rpg-idle-brag/platform-manifest.json`
+- Added scaffold script:
+  - `scripts/create_game_manifest.sh`
+- Added new skill for low-context reusable architecture:
+  - `skills/game-studio-factory/SKILL.md`
+- Updated `AGENTS.md` to include `game-studio-factory` in default sequencing.
+
+## 2026-02-07 (Mobile Playability Fix for Pulse Drift)
+
+- Added on-screen mobile controls to `index.html` (D-pad + action buttons).
+- Extended input adapter with programmatic hold/press APIs in `src/game/input.js`.
+- Bound touch/pointer controls in `src/main.js`.
+- Updated in-game panel text for touch start/restart hints in `src/game/render.js`.
+- Re-validated with tests and Playwright artifacts:
+  - `output/web-game-mobile-check`
