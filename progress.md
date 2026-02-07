@@ -120,3 +120,56 @@ Original prompt: 안녕. 좋은 아침이야. 나느 게임 개발자가 아니�
 - Removed mobile `FULLSCREEN` button from on-screen controls.
 - Verified regression artifact:
   - `output/web-game-kakao-touchfirst`
+
+## 2026-02-07 (Stage and Boss Progression)
+
+- Added stage state model (`normal` wave -> `boss` phase) in:
+  - `src/game/state.js`
+  - `src/game/update.js`
+- Added dynamic difficulty scaling:
+  - spawn interval decreases by stage
+  - enemy speed increases by stage
+  - normal enemy concurrency cap per stage
+- Added boss mechanics:
+  - boss spawn during boss phase
+  - burst can damage/defeat boss
+  - stage clear transitions to next stage with small heal
+- Extended HUD and text-state payload with stage/boss information:
+  - `src/game/render.js`
+  - `src/main.js`
+- Added/updated tests for stage and boss progression:
+  - `tests/update.test.js`
+
+## 2026-02-07 (RPG Monetization + Brag Cycle 01)
+
+- Created new collaboration skill for PO/Dev/Design sync:
+  - `skills/game-crossfunctional-sync/SKILL.md`
+  - `skills/game-crossfunctional-sync/references/*`
+- Updated agent skill routing to include crossfunctional sync:
+  - `AGENTS.md`
+- Added factory integration / crossfunctional / architecture docs:
+  - `projects/rpg-idle-brag/docs/factory-integration-v1.md`
+  - `projects/rpg-idle-brag/docs/cycle-01-crossfunctional-sync.md`
+  - `projects/rpg-idle-brag/docs/architecture-cycle-01-v1.md`
+- Added reviewer/designer/implementation outputs:
+  - `projects/rpg-idle-brag/docs/critical-review-cycle-01-v1.md`
+  - `projects/rpg-idle-brag/docs/asset-direction-cycle-01-v1.md`
+  - `projects/rpg-idle-brag/docs/cycle-01-implementation-notes.md`
+- Implemented playable RPG idle MVP in separate path:
+  - `projects/rpg-idle-brag/web/index.html`
+  - `projects/rpg-idle-brag/web/src/{engine,game,adapters}/*`
+  - `projects/rpg-idle-brag/web/tests/update.test.js`
+  - `projects/rpg-idle-brag/web/tests/playwright-actions-cycle01.json`
+- Added npm helper script:
+  - `package.json` -> `playtest:rpg`
+- Validation:
+  - `npm test` pass (18/18)
+  - `npm run playtest:rpg` pass
+  - artifacts: `output/rpg-idle-brag-cycle01`
+
+## TODO (Next Cycle)
+
+- Add payment failure/cancel branches and tests (currently mock success)
+- Add leaderboard persistence across reload/session
+- Add mobile touch controls for RPG screen and corresponding Playwright scenario
+- Add server-authoritative anti-cheat/persistence strategy draft

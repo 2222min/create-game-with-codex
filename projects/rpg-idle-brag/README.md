@@ -1,22 +1,32 @@
 # RPG Idle Brag
 
-돈을 벌 수 있는 RPG 키우기형 게임을 목표로 하는 별도 프로젝트 디렉토리입니다.
+돈이 되는 RPG 키우기 + 친구 자랑/경쟁 루프를 검증하는 별도 게임 프로젝트입니다.
 
-## Why Separate Directory
+## Directory Map
 
-- 기존 `Pulse Drift` 프로토타입과 충돌 방지
-- 실험 코드/아트/밸런스 데이터 분리
-- 친구 테스트용 배포와 운영용 빌드를 분리하기 쉬움
+- `platform-manifest.json`: 공통 모듈 선택 선언
+- `docs/`: 기획/리스크/아키텍처 문서
+- `web/`: Cycle 01 플레이 가능한 MVP
 
-## Scope (Current)
+## MVP Controls
 
-- 기획 단계 시작
-- 초기 상품성 검토 완료 후 MVP 구현 착수
-- 공통 모듈 적용 선언 완료: `platform-manifest.json`
+- `Enter`: 시작/재시작
+- `Left`: 공격 업그레이드 (Gold)
+- `Right`: 체력 업그레이드 (Gold)
+- `A`: 치명 업그레이드 (Gold)
+- `Space`: 상자 보상 수령
+- `B`: 스타터 팩 구매(1회) / 편의 슬롯 구매
+- `Up`: 리더보드 제출
+- `Down`: 자랑 카드 생성
 
-## Next Step
+## Run
 
-1. `docs/planner-kickoff-v1.md` 확정
-2. `docs/market-skeptic-v1.md` 기준으로 리스크 축소
-3. MVP 구현 디렉토리(`web/`) 생성 후 Cycle 01 개발 시작
-4. 공통 모듈 어댑터 경로(`web/src/adapters/*`) 생성
+루트 경로에서:
+
+```bash
+npm run serve
+```
+
+열기:
+
+`http://127.0.0.1:4173/projects/rpg-idle-brag/web/`
