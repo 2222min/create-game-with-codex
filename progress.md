@@ -54,17 +54,6 @@ Original prompt: 안녕. 좋은 아침이야. 나느 게임 개발자가 아니�
   - `.github/workflows/deploy-pages.yml`
 - Documented one-link sharing flow for non-developer testers.
 
-## 2026-02-07 (New RPG Idle Project Kickoff)
-
-- Created separate project directory:
-  - `projects/rpg-idle-brag/`
-- Added planner kickoff:
-  - `projects/rpg-idle-brag/docs/planner-kickoff-v1.md`
-- Added market skepticism review:
-  - `projects/rpg-idle-brag/docs/market-skeptic-v1.md`
-- Added first milestone scope:
-  - `projects/rpg-idle-brag/docs/milestone-cycle-01.md`
-
 ## 2026-02-07 (Factory Reuse Foundation)
 
 - Added shared module platform registry:
@@ -77,8 +66,6 @@ Original prompt: 안녕. 좋은 아침이야. 나느 게임 개발자가 아니�
   - `platform/shared-modules/contracts/liveops-season-pass.md`
 - Added per-game platform manifest template:
   - `platform/templates/game-platform-manifest.json`
-- Added game-specific manifest:
-  - `projects/rpg-idle-brag/platform-manifest.json`
 - Added scaffold script:
   - `scripts/create_game_manifest.sh`
 - Added new skill for low-context reusable architecture:
@@ -140,40 +127,6 @@ Original prompt: 안녕. 좋은 아침이야. 나느 게임 개발자가 아니�
 - Added/updated tests for stage and boss progression:
   - `tests/update.test.js`
 
-## 2026-02-07 (RPG Monetization + Brag Cycle 01)
-
-- Created new collaboration skill for PO/Dev/Design sync:
-  - `skills/game-crossfunctional-sync/SKILL.md`
-  - `skills/game-crossfunctional-sync/references/*`
-- Updated agent skill routing to include crossfunctional sync:
-  - `AGENTS.md`
-- Added factory integration / crossfunctional / architecture docs:
-  - `projects/rpg-idle-brag/docs/factory-integration-v1.md`
-  - `projects/rpg-idle-brag/docs/cycle-01-crossfunctional-sync.md`
-  - `projects/rpg-idle-brag/docs/architecture-cycle-01-v1.md`
-- Added reviewer/designer/implementation outputs:
-  - `projects/rpg-idle-brag/docs/critical-review-cycle-01-v1.md`
-  - `projects/rpg-idle-brag/docs/asset-direction-cycle-01-v1.md`
-  - `projects/rpg-idle-brag/docs/cycle-01-implementation-notes.md`
-- Implemented playable RPG idle MVP in separate path:
-  - `projects/rpg-idle-brag/web/index.html`
-  - `projects/rpg-idle-brag/web/src/{engine,game,adapters}/*`
-  - `projects/rpg-idle-brag/web/tests/update.test.js`
-  - `projects/rpg-idle-brag/web/tests/playwright-actions-cycle01.json`
-- Added npm helper script:
-  - `package.json` -> `playtest:rpg`
-- Validation:
-  - `npm test` pass (18/18)
-  - `npm run playtest:rpg` pass
-  - artifacts: `output/rpg-idle-brag-cycle01`
-
-## TODO (Next Cycle)
-
-- Add payment failure/cancel branches and tests (currently mock success)
-- Add leaderboard persistence across reload/session
-- Add mobile touch controls for RPG screen and corresponding Playwright scenario
-- Add server-authoritative anti-cheat/persistence strategy draft
-
 ## 2026-02-07 (Stage/Boss Re-Validation for Deploy)
 
 - Re-ran focused unit tests:
@@ -182,27 +135,3 @@ Original prompt: 안녕. 좋은 아침이야. 나느 게임 개발자가 아니�
   - `tests/playwright-actions-stage-boss.json`
   - artifact: `output/web-game-stage-boss-check`
 - Confirmed no runtime launch/test errors in successful Playwright run.
-
-## 2026-02-07 (RPG Readability + Sword Enhancement Rework)
-
-- Reworked RPG UX readability:
-  - Added explicit 3-step onboarding panel in `projects/rpg-idle-brag/web/index.html`
-  - Added big click-action buttons (`start`, `enhance`, `chest`, `shop`, `submit`, `brag`)
-  - Simplified in-canvas information hierarchy in `projects/rpg-idle-brag/web/src/game/render.js`
-- Replaced generic upgrades with sword-progression system:
-  - Added sword state model (`level/tier/attackBonus/attempt/result/roll/effect`) in `projects/rpg-idle-brag/web/src/game/state.js`
-  - Added sword-enhance probability curve (higher level => lower success rate)
-  - Added success/fail outcomes with visual feedback + notice updates
-- Updated input and runtime wiring:
-  - keyboard mapping focused on sword flow in `projects/rpg-idle-brag/web/src/game/input.js`
-  - DOM click-action binding added in `projects/rpg-idle-brag/web/src/main.js`
-  - `render_game_to_text` extended with sword telemetry
-- Updated tests for new mechanics:
-  - `projects/rpg-idle-brag/web/tests/update.test.js`
-  - includes success/fail path, probability regression, persistence after restart
-- Updated playtest action scenario:
-  - `projects/rpg-idle-brag/web/tests/playwright-actions-cycle01.json`
-- Validation:
-  - `npm test` pass (21/21)
-  - `npm run playtest:rpg` pass
-  - artifacts refreshed in `output/rpg-idle-brag-cycle01`
