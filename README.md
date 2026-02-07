@@ -34,7 +34,6 @@ Mobile:
 - `START`: game start
 - `BURST`: pulse burst
 - `RESTART`: restart after game over
-- `FULLSCREEN`: toggle fullscreen
 
 Compatibility:
 - Mobile input supports `pointer`, `touch`, and `mouse` fallback paths for in-app webviews (including Kakao in-app browser).

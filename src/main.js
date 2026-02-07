@@ -28,6 +28,7 @@ function bindMobileControls(inputAdapter) {
   const touchCapable =
     typeof navigator !== "undefined" &&
     (navigator.maxTouchPoints > 0 || "ontouchstart" in window);
+  const useTouchInputPath = touchCapable;
 
   if (touchCapable) {
     root.classList.add("force-visible");
@@ -81,7 +82,7 @@ function bindMobileControls(inputAdapter) {
       updateJoystick(clientX, clientY);
     };
 
-    if (supportsPointer) {
+    if (supportsPointer && !useTouchInputPath) {
       const onJoystickDown = (event) => {
         joystickPointerId = event.pointerId;
         if (joystickBase.setPointerCapture) joystickBase.setPointerCapture(event.pointerId);
@@ -155,9 +156,9 @@ function bindMobileControls(inputAdapter) {
       };
 
       addListener(joystickBase, "touchstart", onTouchStart, { passive: false });
-      addListener(joystickBase, "touchmove", onTouchMove, { passive: false });
-      addListener(joystickBase, "touchend", onTouchEnd, { passive: false });
-      addListener(joystickBase, "touchcancel", onTouchEnd, { passive: false });
+      addListener(window, "touchmove", onTouchMove, { passive: false });
+      addListener(window, "touchend", onTouchEnd, { passive: false });
+      addListener(window, "touchcancel", onTouchEnd, { passive: false });
       addListener(joystickBase, "mousedown", onMouseDown);
       addListener(window, "mousemove", onMouseMove);
       addListener(window, "mouseup", onMouseUp);
@@ -183,7 +184,7 @@ function bindMobileControls(inputAdapter) {
       event.preventDefault();
     };
 
-    if (supportsPointer) {
+    if (supportsPointer && !useTouchInputPath) {
       addListener(button, "pointerdown", activate);
       addListener(button, "pointerup", deactivate);
       addListener(button, "pointercancel", deactivate);

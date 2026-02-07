@@ -112,3 +112,11 @@ Original prompt: 안녕. 좋은 아침이야. 나느 게임 개발자가 아니�
 - Added runtime `force-visible` control mode for touch-capable environments.
 - Confirmed regression checks and artifacts:
   - `output/web-game-kakao-compat`
+
+## 2026-02-07 (Kakao Drag Stability + Mobile Fullscreen Removal)
+
+- Switched mobile control policy to `touch-first` path even when pointer APIs exist.
+- Moved touch move/end tracking to `window` level for robust drag continuity.
+- Removed mobile `FULLSCREEN` button from on-screen controls.
+- Verified regression artifact:
+  - `output/web-game-kakao-touchfirst`
