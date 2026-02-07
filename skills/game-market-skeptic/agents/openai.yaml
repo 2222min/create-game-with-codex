@@ -1,0 +1,4 @@
+interface:
+  display_name: "Game Market Skeptic"
+  short_description: "Commercial viability challenger"
+  default_prompt: "Critique the current game idea for marketability and propose a cheaper validation path."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Game Product Planner"
+  short_description: "Milestones, backlog, and coordination"
+  default_prompt: "Plan the next milestone and coordinate tasks across all game roles."

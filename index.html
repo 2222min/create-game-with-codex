@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pulse Drift - Cycle 01</title>
+    <style>
+      :root {
+        --bg-a: #02131f;
+        --bg-b: #09243a;
+        --panel: #0f2f45;
+        --text: #daf3ff;
+        --accent: #49f0ff;
+      }
+
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+        color: var(--text);
+        background: radial-gradient(circle at 20% 10%, #0d3650 0%, var(--bg-a) 45%, #010b13 100%);
+      }
+
+      .layout {
+        min-height: 100%;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+
+      .stage {
+        width: min(96vw, 980px);
+      }
+
+      .title {
+        margin: 0 0 8px;
+        font-size: clamp(24px, 4vw, 38px);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+
+      .subtitle {
+        margin: 0 0 14px;
+        color: #a7d4ea;
+        font-size: 14px;
+      }
+
+      .canvas-wrap {
+        border: 2px solid #2a5a75;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 0 0 2px rgba(30, 110, 144, 0.3), 0 18px 40px rgba(0, 0, 0, 0.45);
+      }
+
+      canvas {
+        width: 100%;
+        height: auto;
+        display: block;
+        background: #020f1a;
+      }
+
+      .footer {
+        margin-top: 10px;
+        display: flex;
+        gap: 10px;
+        color: #a4c4d6;
+        font-size: 13px;
+        flex-wrap: wrap;
+      }
+
+      .tag {
+        background: rgba(14, 50, 71, 0.9);
+        border: 1px solid rgba(89, 147, 179, 0.5);
+        padding: 4px 8px;
+        border-radius: 999px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <main class="stage">
+        <h1 class="title">Pulse Drift</h1>
+        <p class="subtitle">Cycle 01 Prototype - Arena Survival</p>
+        <section class="canvas-wrap">
+          <canvas id="game-canvas" width="960" height="540"></canvas>
+        </section>
+        <div class="footer">
+          <span class="tag">Move: WASD / Arrow</span>
+          <span class="tag">Pulse: Space</span>
+          <span class="tag">Restart: R</span>
+          <span class="tag">Fullscreen: F</span>
+        </div>
+      </main>
+    </div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

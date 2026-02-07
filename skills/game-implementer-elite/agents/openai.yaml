@@ -1,0 +1,4 @@
+interface:
+  display_name: "Game Implementer Elite"
+  short_description: "High-precision feature implementer"
+  default_prompt: "Implement the assigned game feature exactly against architecture and tests."

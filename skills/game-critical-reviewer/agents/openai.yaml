@@ -1,0 +1,4 @@
+interface:
+  display_name: "Game Critical Reviewer"
+  short_description: "Constructive red-team code reviewer"
+  default_prompt: "Review architecture and code, challenge assumptions, and provide severity-ranked findings."

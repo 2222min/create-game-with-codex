@@ -1,0 +1,4 @@
+interface:
+  display_name: "Game Asset Designer"
+  short_description: "Art direction and asset production"
+  default_prompt: "Define and manage the art asset pipeline for the next game milestone."

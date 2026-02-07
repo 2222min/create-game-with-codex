@@ -1,0 +1,4 @@
+interface:
+  display_name: "Game Architect Lead"
+  short_description: "10-year architect for TDD, FP, and SOLID"
+  default_prompt: "Design the next architecture slice for this web game with strict TDD and functional boundaries."
