@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Guild Idle Chronicle - RPG UI Prototype</title>
+    <title>Boss Forge Odyssey - RPG Prototype</title>
     <style>
       :root {
         --page-bg-a: #120d08;
@@ -85,7 +85,7 @@
 
       .quick-actions {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 8px;
         margin-top: 10px;
       }
@@ -96,7 +96,7 @@
         color: #f8e8c8;
         font-size: 12px;
         font-weight: 700;
-        min-height: 40px;
+        min-height: 38px;
         cursor: pointer;
       }
 
@@ -131,8 +131,8 @@
   <body>
     <main class="app-shell">
       <header class="app-header">
-        <h1 class="title">Guild Idle Chronicle</h1>
-        <p class="subtitle">RPG UI Prototype</p>
+        <h1 class="title">Boss Forge Odyssey</h1>
+        <p class="subtitle">메뉴 분리형 보스 중심 RPG 프로토타입</p>
       </header>
 
       <section class="stage">
@@ -140,18 +140,24 @@
       </section>
 
       <section class="quick-actions" id="quick-actions" aria-label="빠른 조작 버튼">
-        <button class="action-btn" type="button" data-action="start">시작 / 재시작</button>
-        <button class="action-btn" type="button" data-action="buyAttack">공격 강화</button>
-        <button class="action-btn" type="button" data-action="buyHealth">체력 강화</button>
-        <button class="action-btn" type="button" data-action="buyCrit">치명 강화</button>
-        <button class="action-btn" type="button" data-action="claimChest">상자 수령</button>
-        <button class="action-btn" type="button" data-action="checkoutOrConvenience">스타터팩 / 편의 슬롯</button>
-        <button class="action-btn" type="button" data-action="submitScore">랭킹 제출</button>
-        <button class="action-btn" type="button" data-action="generateBragCard">자랑 카드</button>
+        <button class="action-btn" type="button" data-action="openHome">홈</button>
+        <button class="action-btn" type="button" data-action="openStageMap">스테이지맵</button>
+        <button class="action-btn" type="button" data-action="openForge">강화</button>
+        <button class="action-btn" type="button" data-action="openSummon">소환</button>
+
+        <button class="action-btn" type="button" data-action="startBattle">보스전 시작</button>
+        <button class="action-btn" type="button" data-action="attack">공격</button>
+        <button class="action-btn" type="button" data-action="guard">방어</button>
+        <button class="action-btn" type="button" data-action="dodge">회피</button>
+
+        <button class="action-btn" type="button" data-action="upgradeSword">강화 시도</button>
+        <button class="action-btn" type="button" data-action="summonOne">소환 1회</button>
+        <button class="action-btn" type="button" data-action="summonTen">소환 10회</button>
+        <button class="action-btn" type="button" data-action="equipNext">다음 장비</button>
       </section>
 
       <p class="hint">
-        원본 에셋은 사용하지 않고, 요청한 레퍼런스의 분위기/구조만 캔버스 기반으로 재현한 1차 프로토타입입니다.
+        원본 상용 게임 에셋은 사용하지 않았습니다. 현재는 자체 제작 SVG 임시 에셋으로 구조/플로우를 우선 검증합니다.
       </p>
     </main>
 

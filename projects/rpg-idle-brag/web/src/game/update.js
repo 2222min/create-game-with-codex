@@ -1,494 +1,420 @@
-import { track, trackFunnelStep, trackRevenue } from "../adapters/analytics-adapter.js";
-import {
-  claimMissionReward,
-  claimPassTierReward,
-  getActiveSeason,
-  recordMissionEvent,
-} from "../adapters/liveops-adapter.js";
-import { getProductCatalog, getEntitlements, startCheckout } from "../adapters/payment-adapter.js";
-import {
-  generateBragCardData,
-  getLeaderboard,
-  joinGuild,
-  submitScore,
-} from "../adapters/social-adapter.js";
-import { credit, debit, getBalance } from "../adapters/wallet-adapter.js";
 import {
   clamp,
-  createEnemyForStage,
+  createBossForStage,
   createInitialGameState,
-  getAttackUpgradeCost,
-  getConvenienceSlotCost,
-  getCritUpgradeCost,
-  getHealthUpgradeCost,
+  createSword,
+  getSummonCost,
+  getSwordPower,
+  getUpgradeCost,
+  getUpgradeSuccessRate,
+  RARITIES,
 } from "./state.js";
 
-const MAX_CRIT_CHANCE = 0.55;
-const MAX_CONVENIENCE_SLOTS = 3;
+const ATTACK_COOLDOWN_MS = 360;
+const GUARD_WINDOW_MS = 520;
+const GUARD_COOLDOWN_MS = 1350;
+const DODGE_WINDOW_MS = 280;
+const DODGE_COOLDOWN_MS = 1650;
+const PATTERN_TELEGRAPH_MS = 820;
 
 function cloneState(state) {
   return {
     ...state,
+    resources: { ...state.resources },
     hero: { ...state.hero },
+    equipment: {
+      ...state.equipment,
+      swords: state.equipment.swords.map((sword) => ({ ...sword })),
+      lastSummonResults: [...state.equipment.lastSummonResults],
+    },
     progression: { ...state.progression },
-    economy: {
-      ...state.economy,
-      chest: { ...state.economy.chest },
+    battle: {
+      ...state.battle,
+      boss: state.battle.boss ? { ...state.battle.boss, patterns: [...state.battle.boss.patterns] } : null,
     },
-    monetization: {
-      ...state.monetization,
-      ownedSkins: [...state.monetization.ownedSkins],
-    },
-    socialUi: { ...state.socialUi },
     ui: { ...state.ui },
-    debug: { ...state.debug },
   };
 }
 
-function setNotice(state, message, ttlMs = 1800) {
-  state.ui.notice = message;
+function setNotice(state, text, ttlMs = 1700) {
+  state.ui.notice = text;
   state.ui.noticeTtlMs = ttlMs;
 }
 
-function trackEvent(state, eventName, payload) {
-  const tracked = track(state.analytics, eventName, payload, {
-    player_id: state.playerId,
-    session_id: state.sessionId,
-  });
-  state.analytics = tracked.analyticsState;
+function getEquippedSword(state) {
+  return state.equipment.swords.find((sword) => sword.id === state.equipment.equippedSwordId) ?? state.equipment.swords[0];
 }
 
-function trackFunnel(state, step, payload = {}) {
-  const tracked = trackFunnelStep(
-    state.analytics,
-    {
-      step,
-      ...payload,
-    },
-    {
-      player_id: state.playerId,
-      session_id: state.sessionId,
-    }
-  );
-  state.analytics = tracked.analyticsState;
+function getHeroAttackPower(state) {
+  return state.hero.baseAttack + getSwordPower(getEquippedSword(state));
 }
 
-function trackRevenueEvent(state, payload) {
-  const tracked = trackRevenue(state.analytics, payload, {
-    player_id: state.playerId,
-    session_id: state.sessionId,
-  });
-  state.analytics = tracked.analyticsState;
-}
-
-function walletCredit(state, amount, currency, reason, referenceId = "") {
-  const result = credit(state.wallet, state.playerId, amount, currency, reason, referenceId);
-  if (result.ok) state.wallet = result.wallet;
-  return result;
-}
-
-function walletDebit(state, amount, currency, reason, referenceId = "") {
-  const result = debit(state.wallet, state.playerId, amount, currency, reason, referenceId);
-  if (result.ok) state.wallet = result.wallet;
-  return result;
-}
-
-function computePowerScore(state) {
-  const stageScore = state.progression.stage * 120;
-  const levelScore = state.hero.level * 70;
-  const bossScore = state.progression.bossKills * 240;
-  const upgradeScore =
-    state.economy.attackUpgradeLevel * 35 +
-    state.economy.healthUpgradeLevel * 30 +
-    state.economy.critUpgradeLevel * 40;
-  return stageScore + levelScore + bossScore + upgradeScore;
-}
-
-function applyLevelUps(state) {
-  while (state.hero.xp >= state.hero.xpToNext) {
-    state.hero.xp -= state.hero.xpToNext;
-    state.hero.level += 1;
-    state.hero.xpToNext = Math.floor(state.hero.xpToNext * 1.22);
-    state.hero.attack += 3;
-    state.hero.maxHp += 16;
-    state.hero.hp = state.hero.maxHp;
-    trackEvent(state, "upgrade_applied", {
-      type: "level_up",
-      level: state.hero.level,
-      attack: state.hero.attack,
-      max_hp: state.hero.maxHp,
-    });
+function chooseRarity(rng) {
+  const totalWeight = RARITIES.reduce((sum, item) => sum + item.weight, 0);
+  let roll = rng() * totalWeight;
+  for (const rarity of RARITIES) {
+    roll -= rarity.weight;
+    if (roll <= 0) return rarity;
   }
+  return RARITIES[0];
 }
 
-function grantBattleRewards(state, enemy) {
-  const goldResult = walletCredit(state, enemy.rewardGold, "soft", "battle_clear", `stage_${enemy.stage}`);
-  if (!goldResult.ok) {
-    setNotice(state, "보상 지급 오류", 1400);
-  }
-
-  state.hero.xp += enemy.rewardXp;
-  state.progression.stage += 1;
-  state.progression.kills += 1;
-  if (enemy.boss) state.progression.bossKills += 1;
-  state.progression.bestStage = Math.max(state.progression.bestStage, state.progression.stage);
-
-  const missionUpdate = recordMissionEvent(state.liveOps, state.playerId, { killCount: 1 });
-  state.liveOps = missionUpdate.liveOpsState;
-
-  if (state.monetization.starterPackPurchased) {
-    const claim = claimMissionReward(state.liveOps, state.playerId, state.season.missionId);
-    state.liveOps = claim.liveOpsState;
-    if (claim.claimStatus === "completed") {
-      for (const reward of claim.rewards) {
-        walletCredit(state, reward.amount, reward.currency, reward.reason, state.season.missionId);
-      }
-      const tierClaim = claimPassTierReward(state.liveOps, state.playerId, "tier-1");
-      state.liveOps = tierClaim.liveOpsState;
-      if (tierClaim.claimStatus === "completed") {
-        for (const reward of tierClaim.rewards) {
-          walletCredit(state, reward.amount, reward.currency, reward.reason, "tier-1");
-        }
-      }
-      state.debug.missionRewardClaimed = true;
-      setNotice(state, "시즌 미션 보상 수령 완료", 1500);
-    }
-  }
-
-  trackEvent(state, "battle_result", {
-    outcome: "victory",
-    stage: enemy.stage,
-    boss: enemy.boss,
-    reward_gold: enemy.rewardGold,
-    reward_xp: enemy.rewardXp,
-  });
-
-  applyLevelUps(state);
-  state.enemy = createEnemyForStage(state.progression.stage);
+function startBattle(state) {
+  const stage = state.progression.selectedStage;
+  state.mode = "battle";
+  state.ui.selectedMenu = "battle";
+  state.hero.hp = state.hero.maxHp;
+  state.hero.comboCount = 0;
+  state.hero.guardWindowMs = 0;
+  state.hero.dodgeWindowMs = 0;
+  state.hero.guardCooldownMs = 0;
+  state.hero.dodgeCooldownMs = 0;
+  state.hero.attackCooldownMs = 0;
+  state.hero.lastAction = "idle";
+  state.hero.actionTtlMs = 0;
+  state.battle.phase = "fighting";
+  state.battle.boss = createBossForStage(stage);
+  state.battle.nextPatternIndex = 0;
+  state.battle.bossAttackTimerMs = state.battle.boss.attackIntervalMs * 0.8;
+  state.battle.telegraphMs = 0;
+  state.battle.pendingPattern = null;
+  state.battle.lastOutcome = "none";
+  state.battle.floatingText = "BOSS BATTLE START";
+  state.battle.floatingTextTtlMs = 900;
+  setNotice(state, `Stage ${stage} 보스전 시작`, 1200);
 }
 
-function updateChest(state, dtMs) {
-  const chest = state.economy.chest;
-  chest.chargeMs += dtMs;
-  const cap = chest.baseCap + state.monetization.convenienceSlots;
-  while (chest.chargeMs >= chest.intervalMs) {
-    chest.chargeMs -= chest.intervalMs;
-    if (chest.claimable < cap) {
-      chest.claimable += 1;
-    }
-  }
+function goToHome(state) {
+  state.mode = "home";
+  state.ui.selectedMenu = "home";
+  setNotice(state, "홈: 맵/강화/소환 메뉴를 선택하세요", 1600);
 }
 
-function applyChestClaim(state) {
-  const chest = state.economy.chest;
-  if (chest.claimable <= 0) {
-    setNotice(state, "보상 상자가 아직 준비되지 않았습니다.", 1200);
+function goToStageMap(state) {
+  state.mode = "stageMap";
+  state.ui.selectedMenu = "stageMap";
+  setNotice(state, "돌다리 맵에서 다음 스테이지를 선택하세요", 1500);
+}
+
+function goToForge(state) {
+  state.mode = "forge";
+  state.ui.selectedMenu = "forge";
+  const sword = getEquippedSword(state);
+  const cost = getUpgradeCost(sword);
+  setNotice(state, `${sword.name} 강화 준비 (비용 ${cost}G)`, 1500);
+}
+
+function goToSummon(state) {
+  state.mode = "summon";
+  state.ui.selectedMenu = "summon";
+  setNotice(state, "장비 소환: 1회(1번), 10회(0번)", 1500);
+}
+
+function moveStageSelection(state, delta) {
+  const maxReach = Math.max(1, state.progression.highestClearedStage + 1);
+  state.progression.selectedStage = clamp(state.progression.selectedStage + delta, 1, maxReach);
+  setNotice(state, `선택 스테이지: ${state.progression.selectedStage}`, 900);
+}
+
+function equipNextSword(state) {
+  if (state.equipment.swords.length <= 1) return;
+  const ids = state.equipment.swords.map((sword) => sword.id);
+  const currentIndex = ids.indexOf(state.equipment.equippedSwordId);
+  const nextIndex = (currentIndex + 1) % ids.length;
+  state.equipment.equippedSwordId = ids[nextIndex];
+  const sword = getEquippedSword(state);
+  setNotice(state, `장착: ${sword.name} +${sword.level}`, 1200);
+}
+
+function tryUpgradeEquippedSword(state, rng) {
+  const sword = getEquippedSword(state);
+  const cost = getUpgradeCost(sword);
+  if (state.resources.gold < cost) {
+    setNotice(state, `골드 부족: ${cost}G 필요`, 1200);
+    state.equipment.lastUpgradeResult = "insufficient";
     return;
   }
-  chest.claimable -= 1;
-
-  const stageBonus = 1 + Math.min(2.4, state.progression.stage * 0.025);
-  const gold = Math.floor(chest.goldBase * stageBonus);
-  const xp = Math.floor(chest.xpBase * stageBonus);
-
-  walletCredit(state, gold, "soft", "chest_claim", `stage_${state.progression.stage}`);
-  state.hero.xp += xp;
-  applyLevelUps(state);
-
-  trackEvent(state, "battle_result", {
-    outcome: "chest_claim",
-    stage: state.progression.stage,
-    gold,
-    xp,
-  });
-
-  setNotice(state, `상자 수령 +${gold}G / +${xp}XP`, 1400);
+  state.resources.gold -= cost;
+  const successRate = getUpgradeSuccessRate(sword);
+  if (rng() <= successRate) {
+    sword.level += 1;
+    state.equipment.lastUpgradeResult = "success";
+    setNotice(state, `강화 성공! ${sword.name} +${sword.level}`, 1300);
+  } else {
+    state.equipment.lastUpgradeResult = "fail";
+    setNotice(state, "강화 실패... 재도전하세요", 1300);
+  }
 }
 
-function tryBuyAttackUpgrade(state) {
-  const cost = getAttackUpgradeCost(state.economy.attackUpgradeLevel);
-  const debited = walletDebit(state, cost, "soft", "upgrade_attack", `atk_${state.economy.attackUpgradeLevel}`);
-  if (!debited.ok) {
-    setNotice(state, `골드 부족: 공격 강화 ${cost}G`, 1200);
+function runSummon(state, count, rng) {
+  const cost = getSummonCost(count);
+  if (state.resources.summonStone < cost.summonStone || state.resources.gold < cost.gold) {
+    setNotice(state, `재화 부족: ${cost.summonStone}석 / ${cost.gold}G 필요`, 1200);
     return;
   }
-  state.economy.attackUpgradeLevel += 1;
-  state.hero.attack += 4;
-  setNotice(state, `공격 강화 +4 (Lv.${state.economy.attackUpgradeLevel})`, 1200);
-  trackEvent(state, "upgrade_applied", {
-    type: "attack",
-    level: state.economy.attackUpgradeLevel,
-    cost,
-  });
-}
 
-function tryBuyHealthUpgrade(state) {
-  const cost = getHealthUpgradeCost(state.economy.healthUpgradeLevel);
-  const debited = walletDebit(state, cost, "soft", "upgrade_health", `hp_${state.economy.healthUpgradeLevel}`);
-  if (!debited.ok) {
-    setNotice(state, `골드 부족: 체력 강화 ${cost}G`, 1200);
-    return;
+  state.resources.summonStone -= cost.summonStone;
+  state.resources.gold -= cost.gold;
+  state.equipment.lastSummonResults = [];
+
+  for (let i = 0; i < count; i += 1) {
+    const rarity = chooseRarity(rng);
+    const sword = createSword(state.equipment.nextSwordId, rarity.id, 1);
+    state.equipment.nextSwordId += 1;
+    state.equipment.swords.push(sword);
+    state.equipment.lastSummonResults.push(sword.rarityLabel);
   }
-  state.economy.healthUpgradeLevel += 1;
-  state.hero.maxHp += 28;
-  state.hero.hp = Math.min(state.hero.maxHp, state.hero.hp + 28);
-  setNotice(state, `체력 강화 +28 (Lv.${state.economy.healthUpgradeLevel})`, 1200);
-  trackEvent(state, "upgrade_applied", {
-    type: "health",
-    level: state.economy.healthUpgradeLevel,
-    cost,
-  });
+
+  const bestSword = [...state.equipment.swords].sort((a, b) => getSwordPower(b) - getSwordPower(a))[0];
+  state.equipment.equippedSwordId = bestSword.id;
+
+  const summary = state.equipment.lastSummonResults.slice(0, 4).join(", ");
+  setNotice(state, `${count}회 소환 완료 (${summary}${state.equipment.lastSummonResults.length > 4 ? "..." : ""})`, 1700);
 }
 
-function tryBuyCritUpgrade(state) {
-  const cost = getCritUpgradeCost(state.economy.critUpgradeLevel);
-  const debited = walletDebit(state, cost, "soft", "upgrade_crit", `crit_${state.economy.critUpgradeLevel}`);
-  if (!debited.ok) {
-    setNotice(state, `골드 부족: 치명 강화 ${cost}G`, 1200);
-    return;
+function resolveBossPatternHit(state) {
+  if (!state.battle.boss || !state.battle.pendingPattern) return;
+
+  const pattern = state.battle.pendingPattern;
+  let damage = state.battle.boss.attack;
+  if (pattern === "slam") damage = Math.floor(damage * 1.2);
+  if (pattern === "charge") damage = Math.floor(damage * 0.9);
+
+  let outcome = "hit";
+  if (state.hero.dodgeWindowMs > 0) {
+    damage = 0;
+    outcome = "dodge";
+    state.hero.comboCount += 1;
+    state.hero.lastAction = "dodge";
+    state.hero.actionTtlMs = 260;
+  } else if (state.hero.guardWindowMs > 0) {
+    damage = Math.floor(damage * 0.28);
+    outcome = "guard";
+    state.hero.comboCount += 1;
+    state.hero.lastAction = "guard";
+    state.hero.actionTtlMs = 260;
+  } else {
+    state.hero.comboCount = 0;
+    state.hero.lastAction = "hit";
+    state.hero.actionTtlMs = 340;
   }
-  state.economy.critUpgradeLevel += 1;
-  state.hero.critChance = clamp(state.hero.critChance + 0.03, 0, MAX_CRIT_CHANCE);
-  setNotice(state, `치명 확률 +3% (현재 ${(state.hero.critChance * 100).toFixed(0)}%)`, 1200);
-  trackEvent(state, "upgrade_applied", {
-    type: "crit",
-    level: state.economy.critUpgradeLevel,
-    cost,
-  });
+
+  state.hero.hp = Math.max(0, state.hero.hp - damage);
+  state.battle.floatingText =
+    outcome === "dodge" ? "DODGE" : outcome === "guard" ? `GUARD ${damage}` : `HIT ${damage}`;
+  state.battle.floatingTextTtlMs = 540;
+  state.battle.cameraShakeMs = outcome === "hit" ? 150 : 0;
+
+  if (state.hero.hp <= 0) {
+    state.battle.phase = "defeat";
+    state.battle.lastOutcome = "defeat";
+    setNotice(state, "보스에게 패배! 홈으로 돌아가 장비를 강화하세요", 1800);
+  }
 }
 
-function tryStarterPackCheckout(state) {
-  const catalog = getProductCatalog();
-  trackEvent(state, "payment_attempt", {
-    product_id: "starter_pack",
-    source: "keyboard_b",
-    owned: state.monetization.starterPackPurchased,
-  });
+function clearStage(state) {
+  if (!state.battle.boss) return;
+  const stage = state.battle.boss.stage;
+  const rewardGold = state.battle.boss.rewardGold;
+  const rewardStone = state.battle.boss.rewardSummonStone;
+  const rewardGems = state.battle.boss.rewardGems;
 
-  if (state.monetization.starterPackPurchased) {
-    const convenienceCost = getConvenienceSlotCost(state.monetization.convenienceSlots);
-    if (state.monetization.convenienceSlots >= MAX_CONVENIENCE_SLOTS) {
-      setNotice(state, "편의 슬롯은 최대치입니다.", 1200);
+  state.resources.gold += rewardGold;
+  state.resources.summonStone += rewardStone;
+  state.resources.gems += rewardGems;
+  state.progression.highestClearedStage = Math.max(state.progression.highestClearedStage, stage);
+  state.progression.currentStage = state.progression.highestClearedStage + 1;
+  state.progression.selectedStage = state.progression.currentStage;
+  state.progression.totalBossKills += 1;
+
+  state.battle.phase = "victory";
+  state.battle.lastOutcome = "victory";
+  state.battle.floatingText = "BOSS DOWN";
+  state.battle.floatingTextTtlMs = 900;
+  setNotice(state, `Stage ${stage} 클리어! +${rewardGold}G +${rewardStone}석`, 2000);
+}
+
+function updateBattle(state, input, dtMs) {
+  if (!state.battle.boss || state.battle.phase !== "fighting") return;
+
+  state.hero.attackCooldownMs = Math.max(0, state.hero.attackCooldownMs - dtMs);
+  state.hero.guardWindowMs = Math.max(0, state.hero.guardWindowMs - dtMs);
+  state.hero.guardCooldownMs = Math.max(0, state.hero.guardCooldownMs - dtMs);
+  state.hero.dodgeWindowMs = Math.max(0, state.hero.dodgeWindowMs - dtMs);
+  state.hero.dodgeCooldownMs = Math.max(0, state.hero.dodgeCooldownMs - dtMs);
+  state.hero.actionTtlMs = Math.max(0, state.hero.actionTtlMs - dtMs);
+  if (state.hero.actionTtlMs === 0 && state.hero.lastAction !== "idle") {
+    state.hero.lastAction = "idle";
+  }
+
+  if (state.battle.floatingTextTtlMs > 0) {
+    state.battle.floatingTextTtlMs = Math.max(0, state.battle.floatingTextTtlMs - dtMs);
+  }
+  state.battle.cameraShakeMs = Math.max(0, state.battle.cameraShakeMs - dtMs);
+
+  if (input.guard && state.hero.guardCooldownMs <= 0) {
+    state.hero.guardWindowMs = GUARD_WINDOW_MS;
+    state.hero.guardCooldownMs = GUARD_COOLDOWN_MS;
+    state.hero.lastAction = "guard";
+    state.hero.actionTtlMs = 360;
+    state.battle.floatingText = "GUARD READY";
+    state.battle.floatingTextTtlMs = 300;
+  }
+
+  if (input.dodge && state.hero.dodgeCooldownMs <= 0) {
+    state.hero.dodgeWindowMs = DODGE_WINDOW_MS;
+    state.hero.dodgeCooldownMs = DODGE_COOLDOWN_MS;
+    state.hero.lastAction = "dodge";
+    state.hero.actionTtlMs = 320;
+    state.battle.floatingText = "DODGE";
+    state.battle.floatingTextTtlMs = 300;
+  }
+
+  if (input.attack && state.hero.attackCooldownMs <= 0) {
+    const comboBonus = 1 + Math.min(0.45, state.hero.comboCount * 0.06);
+    const damage = Math.floor(getHeroAttackPower(state) * comboBonus);
+    state.battle.boss.hp = Math.max(0, state.battle.boss.hp - damage);
+    state.hero.attackCooldownMs = ATTACK_COOLDOWN_MS;
+    state.hero.lastAction = "attack";
+    state.hero.actionTtlMs = 260;
+    state.battle.floatingText = `-${damage}`;
+    state.battle.floatingTextTtlMs = 360;
+
+    if (state.battle.boss.hp <= 0) {
+      clearStage(state);
       return;
     }
-    const debitResult = walletDebit(
-      state,
-      convenienceCost,
-      "premium",
-      "convenience_slot",
-      `conv_${state.monetization.convenienceSlots}`
-    );
-    if (!debitResult.ok) {
-      setNotice(state, `보석 부족: 편의 슬롯 ${convenienceCost}개`, 1200);
-      return;
+  }
+
+  if (state.battle.telegraphMs > 0) {
+    state.battle.telegraphMs = Math.max(0, state.battle.telegraphMs - dtMs);
+    if (state.battle.telegraphMs === 0) {
+      resolveBossPatternHit(state);
+      if (state.battle.phase === "fighting") {
+        state.battle.pendingPattern = null;
+        state.battle.bossAttackTimerMs = state.battle.boss.attackIntervalMs;
+      }
     }
-    state.monetization.convenienceSlots += 1;
-    setNotice(state, `편의 슬롯 +1 (최대 상자 ${1 + state.monetization.convenienceSlots})`, 1300);
-    trackEvent(state, "upgrade_applied", {
-      type: "convenience_slot",
-      level: state.monetization.convenienceSlots,
-      cost: convenienceCost,
-    });
     return;
   }
 
-  const checkout = startCheckout(state.payment, "starter_pack", {
-    playerId: state.playerId,
-    platform: "web",
-    locale: "ko-KR",
-  });
-  state.payment = checkout.paymentState;
-  state.monetization.lastCheckoutResult = checkout.checkoutResult;
+  state.battle.bossAttackTimerMs -= dtMs;
+  if (state.battle.bossAttackTimerMs <= 0) {
+    const pattern = state.battle.boss.patterns[state.battle.nextPatternIndex % state.battle.boss.patterns.length];
+    state.battle.nextPatternIndex += 1;
+    state.battle.pendingPattern = pattern;
+    state.battle.telegraphMs = PATTERN_TELEGRAPH_MS;
+    state.battle.floatingText = `${pattern.toUpperCase()}!`;
+    state.battle.floatingTextTtlMs = 520;
+  }
+}
 
-  if (checkout.checkoutResult !== "completed") {
-    setNotice(state, "결제가 취소되었거나 실패했습니다.", 1200);
+function updateNotice(state, dtMs) {
+  state.ui.noticeTtlMs = Math.max(0, state.ui.noticeTtlMs - dtMs);
+  if (state.ui.noticeTtlMs === 0) state.ui.notice = "";
+}
+
+function updateModeByInput(state, input) {
+  const inCombat = state.mode === "battle" && state.battle.phase === "fighting";
+  if (input.openHome && !inCombat) {
+    goToHome(state);
+  } else if (input.openStageMap && !inCombat) {
+    goToStageMap(state);
+  } else if (input.openForge && !inCombat) {
+    goToForge(state);
+  } else if (input.openSummon && !inCombat) {
+    goToSummon(state);
+  }
+}
+
+function handleScreenActions(state, input, rng) {
+  if (state.mode === "stageMap") {
+    if (input.previousStage) moveStageSelection(state, -1);
+    if (input.nextStage) moveStageSelection(state, 1);
+    if (input.startBattle) startBattle(state);
     return;
   }
 
-  const product = catalog.starter_pack;
-  walletCredit(state, product.grantsPremiumCurrency, "premium", "purchase_grant", "starter_pack");
-  state.monetization.starterPackPurchased = true;
-  state.monetization.activeSkin = product.grantsSkin;
-  if (!state.monetization.ownedSkins.includes(product.grantsSkin)) {
-    state.monetization.ownedSkins.push(product.grantsSkin);
-  }
-
-  trackRevenueEvent(state, {
-    product_id: "starter_pack",
-    price_usd: product.priceUsd,
-    premium_granted: product.grantsPremiumCurrency,
-  });
-
-  setNotice(state, "스타터 팩 구매 완료: +120 Gems, Royal Skin", 1700);
-}
-
-function trySubmitScore(state) {
-  const score = computePowerScore(state);
-  const submission = submitScore(state.social, state.playerId, state.season.id, {
-    nickname: state.nickname,
-    score,
-  });
-  state.social = submission.socialState;
-  state.socialUi.lastRank = submission.rank;
-  state.progression.lastScoreSubmitted = score;
-
-  const leaderboard = getLeaderboard(state.social, "guild", state.season.id);
-  state.socialUi.showLeaderboard = true;
-
-  trackFunnel(state, "score_submit", {
-    score,
-    rank: submission.rank,
-    leaderboard_size: leaderboard.leaderboard.length,
-  });
-
-  setNotice(state, `랭킹 제출 완료: ${score}점 / #${submission.rank}`, 1500);
-}
-
-function tryGenerateBragCard(state) {
-  const submittedScore = state.progression.lastScoreSubmitted;
-  if (submittedScore <= 0) {
-    setNotice(state, "먼저 UP으로 랭킹을 제출하세요.", 1200);
+  if (state.mode === "forge") {
+    if (input.upgradeSword) tryUpgradeEquippedSword(state, rng);
+    if (input.equipNext) equipNextSword(state);
     return;
   }
 
-  const brag = generateBragCardData(state.social, state.playerId, state.season.id);
-  state.social = brag.socialState;
-  state.socialUi.lastBragCardText = brag.bragCard.shareLine;
-
-  trackFunnel(state, "brag_card", {
-    score: brag.bragCard.score,
-    rank: brag.bragCard.rank,
-    tier: brag.bragCard.tier,
-  });
-
-  setNotice(state, `자랑 카드 생성: ${brag.bragCard.tier} 티어`, 1600);
-}
-
-function updateCombat(state, dtMs, rng) {
-  const dtSec = dtMs / 1000;
-  const hero = state.hero;
-  const enemy = state.enemy;
-
-  hero.hp = clamp(hero.hp + hero.regenPerSecond * dtSec, 0, hero.maxHp);
-  hero.attackCooldownMs -= dtMs;
-  enemy.attackCooldownMs -= dtMs;
-
-  while (hero.attackCooldownMs <= 0 && enemy.hp > 0) {
-    hero.attackCooldownMs += hero.attackIntervalMs;
-    const isCrit = rng() < hero.critChance;
-    const damage = Math.floor(hero.attack * (isCrit ? hero.critMultiplier : 1));
-    enemy.hp = Math.max(0, enemy.hp - damage);
-    state.debug.lastHeroHit = damage;
-    state.debug.lastHitWasCrit = isCrit;
-  }
-
-  if (enemy.hp <= 0) {
-    grantBattleRewards(state, enemy);
+  if (state.mode === "summon") {
+    if (input.summonOne) runSummon(state, 1, rng);
+    if (input.summonTen) runSummon(state, 10, rng);
+    if (input.equipNext) equipNextSword(state);
     return;
   }
 
-  while (enemy.attackCooldownMs <= 0 && hero.hp > 0) {
-    enemy.attackCooldownMs += enemy.attackIntervalMs;
-    hero.hp = Math.max(0, hero.hp - enemy.attack);
-    state.debug.lastEnemyHit = enemy.attack;
+  if (state.mode === "home") {
+    if (input.startBattle) {
+      goToStageMap(state);
+    }
+    if (input.equipNext) equipNextSword(state);
   }
-
-  if (hero.hp <= 0) {
-    state.mode = "gameover";
-    setNotice(state, "패배: ENTER로 재도전", 2400);
-    trackEvent(state, "battle_result", {
-      outcome: "defeat",
-      stage: state.progression.stage,
-      enemy: enemy.name,
-    });
-    trackEvent(state, "session_end", {
-      stage: state.progression.stage,
-      kills: state.progression.kills,
-      score: computePowerScore(state),
-    });
-  }
-}
-
-function toPlayingState(state) {
-  const next = cloneState(state);
-  next.mode = "playing";
-  next.ui.notice = "자동 전투 시작. LEFT/RIGHT/A로 강화, B로 결제/편의";
-  next.ui.noticeTtlMs = 2200;
-  next.season = getActiveSeason(next.liveOps);
-
-  const joined = joinGuild(next.social, next.playerId, next.social.guildId);
-  next.social = joined.socialState;
-
-  trackEvent(next, "session_start", {
-    season: next.season.id,
-    guild: next.social.guildId,
-  });
-  trackFunnel(next, "session_start", {
-    season: next.season.id,
-  });
-
-  return next;
-}
-
-function resetRunState(previousState) {
-  const fresh = createInitialGameState();
-  fresh.social = previousState.social;
-  fresh.socialUi.showLeaderboard = true;
-  fresh.wallet = previousState.wallet;
-  fresh.payment = previousState.payment;
-  fresh.monetization = previousState.monetization;
-  fresh.analytics = previousState.analytics;
-  fresh.liveOps = previousState.liveOps;
-  fresh.season = getActiveSeason(fresh.liveOps);
-  return toPlayingState(fresh);
 }
 
 export function updateGame(state, input, dtMs, rng = Math.random) {
-  if (state.mode === "start") {
-    if (input.start) {
-      return toPlayingState(state);
-    }
-    return state;
-  }
-
-  if (state.mode === "gameover") {
-    if (input.restart || input.start) {
-      return resetRunState(state);
-    }
-    return state;
-  }
-
   const next = cloneState(state);
   next.elapsedMs += dtMs;
-  next.ui.pulseMs = (next.ui.pulseMs + dtMs) % 1000;
-  next.ui.noticeTtlMs = Math.max(0, next.ui.noticeTtlMs - dtMs);
-  if (next.ui.noticeTtlMs === 0) next.ui.notice = "";
 
-  if (input.buyAttack) tryBuyAttackUpgrade(next);
-  if (input.buyHealth) tryBuyHealthUpgrade(next);
-  if (input.buyCrit) tryBuyCritUpgrade(next);
-  if (input.checkoutOrConvenience) tryStarterPackCheckout(next);
-  if (input.claimChest) applyChestClaim(next);
-  if (input.submitScore) trySubmitScore(next);
-  if (input.generateBragCard) tryGenerateBragCard(next);
+  updateModeByInput(next, input);
 
-  updateChest(next, dtMs);
-  updateCombat(next, dtMs, rng);
-
-  const entitlements = getEntitlements(next.payment);
-  if (entitlements.starter_pack && !next.monetization.starterPackPurchased) {
-    next.monetization.starterPackPurchased = true;
+  if (next.mode === "battle") {
+    if (next.battle.phase === "victory" && (input.startBattle || input.openStageMap)) {
+      goToStageMap(next);
+    } else if (next.battle.phase === "defeat" && (input.startBattle || input.openHome)) {
+      goToHome(next);
+    } else {
+      updateBattle(next, input, dtMs);
+    }
+  } else {
+    handleScreenActions(next, input, rng);
   }
 
+  updateNotice(next, dtMs);
   return next;
 }
 
 export function getUiSnapshot(state) {
-  const balance = getBalance(state.wallet);
-  const leaderboard = getLeaderboard(state.social, "guild", state.season.id).leaderboard;
+  const equippedSword = getEquippedSword(state);
   return {
-    gold: balance.soft,
-    gems: balance.premium,
-    leaderboard,
+    mode: state.mode,
+    currentStage: state.progression.currentStage,
+    selectedStage: state.progression.selectedStage,
+    highestClearedStage: state.progression.highestClearedStage,
+    gold: state.resources.gold,
+    gems: state.resources.gems,
+    summonStone: state.resources.summonStone,
+    totalBossKills: state.progression.totalBossKills,
+    heroAttack: getHeroAttackPower(state),
+    heroAction: state.hero.lastAction,
+    equippedSword: {
+      id: equippedSword.id,
+      name: equippedSword.name,
+      rarity: equippedSword.rarityLabel,
+      level: equippedSword.level,
+      power: getSwordPower(equippedSword),
+      upgradeCost: getUpgradeCost(equippedSword),
+      upgradeSuccessRate: getUpgradeSuccessRate(equippedSword),
+    },
+    inventoryCount: state.equipment.swords.length,
+    lastSummonResults: [...state.equipment.lastSummonResults],
+    boss: state.battle.boss
+      ? {
+          name: state.battle.boss.name,
+          hp: state.battle.boss.hp,
+          maxHp: state.battle.boss.maxHp,
+          stage: state.battle.boss.stage,
+          pendingPattern: state.battle.pendingPattern,
+          telegraphMs: state.battle.telegraphMs,
+        }
+      : null,
   };
+}
+
+export function resetGameForTest() {
+  return createInitialGameState();
 }

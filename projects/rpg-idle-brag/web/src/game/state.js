@@ -1,129 +1,142 @@
-import { createAnalyticsState } from "../adapters/analytics-adapter.js";
-import { createLiveOpsState, getActiveSeason } from "../adapters/liveops-adapter.js";
-import { createPaymentState } from "../adapters/payment-adapter.js";
-import { createSocialState } from "../adapters/social-adapter.js";
-import { createWalletState } from "../adapters/wallet-adapter.js";
-
 export const GAME_WIDTH = 1024;
 export const GAME_HEIGHT = 576;
 
 export function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
+  return Math.max(min, Math.min(max, value));
 }
 
-function makeEnemyName(stage, isBoss) {
-  if (isBoss) return `Void Warden ${stage / 10}`;
-  const names = ["Moss Slime", "Iron Bat", "Ash Golem", "Rune Hound", "Frost Shade"];
-  return names[(stage - 1) % names.length];
-}
+export const RARITIES = [
+  { id: "common", label: "Common", weight: 62, color: "#d5d7df", baseAttack: 12 },
+  { id: "uncommon", label: "Uncommon", weight: 24, color: "#8ddc85", baseAttack: 17 },
+  { id: "rare", label: "Rare", weight: 10, color: "#6ea8ff", baseAttack: 24 },
+  { id: "epic", label: "Epic", weight: 3.2, color: "#b27cff", baseAttack: 34 },
+  { id: "legendary", label: "Legendary", weight: 0.8, color: "#ffb45f", baseAttack: 48 },
+];
 
-export function createEnemyForStage(stage) {
-  const boss = stage % 10 === 0;
-  const hp = Math.floor((boss ? 300 : 120) + stage * (boss ? 55 : 28));
-  const attack = Math.floor((boss ? 16 : 7) + stage * (boss ? 1.8 : 0.9));
-  const attackIntervalMs = boss ? 1350 : 1850;
+export function createSword(id, rarityId, level = 1) {
+  const rarity = RARITIES.find((item) => item.id === rarityId) ?? RARITIES[0];
   return {
-    stage,
-    name: makeEnemyName(stage, boss),
-    boss,
-    maxHp: hp,
-    hp,
-    attack,
-    attackIntervalMs,
-    attackCooldownMs: boss ? 900 : 650,
-    rewardGold: Math.floor((boss ? 180 : 48) + stage * (boss ? 14 : 7)),
-    rewardXp: Math.floor((boss ? 95 : 24) + stage * (boss ? 5 : 2.8)),
+    id,
+    rarity: rarity.id,
+    rarityLabel: rarity.label,
+    color: rarity.color,
+    level,
+    baseAttack: rarity.baseAttack,
+    name: `${rarity.label} Blade`,
   };
 }
 
-export function getAttackUpgradeCost(level) {
-  return Math.floor(60 * Math.pow(1.22, level));
+export function getSwordPower(sword) {
+  return Math.floor(sword.baseAttack * (1 + (sword.level - 1) * 0.16));
 }
 
-export function getHealthUpgradeCost(level) {
-  return Math.floor(75 * Math.pow(1.24, level));
+export function getUpgradeCost(sword) {
+  const rarityScale = {
+    common: 1,
+    uncommon: 1.2,
+    rare: 1.5,
+    epic: 1.9,
+    legendary: 2.4,
+  };
+  const scale = rarityScale[sword.rarity] ?? 1;
+  return Math.floor(75 * scale * Math.pow(1.18, sword.level));
 }
 
-export function getCritUpgradeCost(level) {
-  return Math.floor(95 * Math.pow(1.28, level));
+export function getUpgradeSuccessRate(sword) {
+  const rarityPenalty = {
+    common: 0.0,
+    uncommon: 0.03,
+    rare: 0.07,
+    epic: 0.12,
+    legendary: 0.16,
+  };
+  const penalty = rarityPenalty[sword.rarity] ?? 0;
+  return clamp(0.9 - sword.level * 0.042 - penalty, 0.18, 0.9);
 }
 
-export function getConvenienceSlotCost(slotCount) {
-  return 40 + slotCount * 24;
+export function getSummonCost(times) {
+  return {
+    summonStone: times === 10 ? 9 : 1,
+    gold: times === 10 ? 900 : 130,
+  };
+}
+
+export function createBossForStage(stage) {
+  const namePool = [
+    "Forest Crusher",
+    "Iron Boar King",
+    "Storm Minotaur",
+  ];
+  const name = namePool[(stage - 1) % namePool.length];
+  const hp = Math.floor(520 + stage * 210);
+  const attack = Math.floor(24 + stage * 4.4);
+  return {
+    stage,
+    name,
+    maxHp: hp,
+    hp,
+    attack,
+    attackIntervalMs: Math.max(950, 2200 - stage * 45),
+    rewardGold: 170 + stage * 50,
+    rewardSummonStone: 1 + Math.floor(stage / 3),
+    rewardGems: stage % 5 === 0 ? 8 : 0,
+    patterns: ["slash", "slam", "charge"],
+  };
 }
 
 export function createInitialGameState() {
-  const liveOps = createLiveOpsState();
-  const season = getActiveSeason(liveOps);
+  const starterSword = createSword(1, "common", 1);
   return {
-    mode: "start",
+    mode: "home",
     bounds: { width: GAME_WIDTH, height: GAME_HEIGHT },
     elapsedMs: 0,
-    playerId: "player-you",
-    nickname: "You",
-    sessionId: "session-local-1",
+    resources: {
+      gold: 1500,
+      gems: 60,
+      summonStone: 14,
+    },
     hero: {
-      level: 1,
-      xp: 0,
-      xpToNext: 50,
-      attack: 14,
-      maxHp: 170,
-      hp: 170,
-      critChance: 0.08,
-      critMultiplier: 1.75,
-      attackIntervalMs: 780,
-      attackCooldownMs: 500,
-      regenPerSecond: 1.8,
+      hp: 260,
+      maxHp: 260,
+      baseAttack: 20,
+      guardWindowMs: 0,
+      guardCooldownMs: 0,
+      dodgeWindowMs: 0,
+      dodgeCooldownMs: 0,
+      attackCooldownMs: 0,
+      comboCount: 0,
+      lastAction: "idle",
+      actionTtlMs: 0,
+    },
+    equipment: {
+      nextSwordId: 2,
+      swords: [starterSword],
+      equippedSwordId: starterSword.id,
+      lastSummonResults: [],
+      lastUpgradeResult: "none",
     },
     progression: {
-      stage: 1,
-      kills: 0,
-      bossKills: 0,
-      bestStage: 1,
-      lastScoreSubmitted: 0,
+      currentStage: 1,
+      selectedStage: 1,
+      highestClearedStage: 0,
+      totalBossKills: 0,
     },
-    enemy: createEnemyForStage(1),
-    economy: {
-      attackUpgradeLevel: 0,
-      healthUpgradeLevel: 0,
-      critUpgradeLevel: 0,
-      chest: {
-        chargeMs: 0,
-        intervalMs: 9000,
-        claimable: 0,
-        baseCap: 1,
-        goldBase: 90,
-        xpBase: 26,
-      },
+    battle: {
+      phase: "idle",
+      boss: null,
+      nextPatternIndex: 0,
+      bossAttackTimerMs: 0,
+      telegraphMs: 0,
+      pendingPattern: null,
+      lastOutcome: "none",
+      floatingText: "",
+      floatingTextTtlMs: 0,
+      cameraShakeMs: 0,
     },
-    monetization: {
-      starterPackPurchased: false,
-      convenienceSlots: 0,
-      activeSkin: "default",
-      ownedSkins: ["default"],
-      lastCheckoutResult: "none",
-    },
-    socialUi: {
-      lastRank: null,
-      showLeaderboard: true,
-      lastBragCardText: "",
-    },
-    liveOps,
-    wallet: createWalletState({ soft: 220, premium: 0 }),
-    payment: createPaymentState(),
-    analytics: createAnalyticsState(),
-    social: createSocialState(),
     ui: {
-      notice: "ENTER로 시작하고 자동 전투를 지켜보세요.",
-      noticeTtlMs: 0,
-      pulseMs: 0,
+      notice: "홈에서 메뉴를 선택하세요: 스테이지맵 / 강화 / 소환",
+      noticeTtlMs: 3000,
+      selectedMenu: "home",
     },
-    debug: {
-      lastHeroHit: 0,
-      lastEnemyHit: 0,
-      lastHitWasCrit: false,
-      missionRewardClaimed: false,
-    },
-    season,
   };
 }

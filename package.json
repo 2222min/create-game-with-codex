@@ -6,7 +6,8 @@
   "scripts": {
     "test": "node --test",
     "serve": "python3 -m http.server 4173",
-    "playtest": "PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=mac15-arm64 node scripts/web_game_playwright_client.js --url http://127.0.0.1:4173 --actions-file tests/playwright-actions-cycle01.json --iterations 3 --pause-ms 250 --screenshot-dir output/web-game"
+    "playtest": "PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=mac15-arm64 node scripts/web_game_playwright_client.js --url http://127.0.0.1:4173 --actions-file tests/playwright-actions-cycle01.json --iterations 3 --pause-ms 250 --screenshot-dir output/web-game",
+    "playtest:rpg": "PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=mac15-arm64 node scripts/web_game_playwright_client.js --url http://127.0.0.1:4173/projects/rpg-idle-brag/web/ --actions-file projects/rpg-idle-brag/web/tests/playwright-actions-cycle01.json --iterations 3 --pause-ms 250 --screenshot-dir output/rpg-idle-brag-v2"
   },
   "dependencies": {
     "playwright": "^1.58.2"

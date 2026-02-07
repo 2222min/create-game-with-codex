@@ -1,13 +1,7 @@
 import { createFixedStepLoop } from "./engine/loop.js";
 import { createInputAdapter } from "./game/input.js";
 import { renderGame } from "./game/render.js";
-import {
-  createInitialGameState,
-  getAttackUpgradeCost,
-  getConvenienceSlotCost,
-  getCritUpgradeCost,
-  getHealthUpgradeCost,
-} from "./game/state.js";
+import { createInitialGameState } from "./game/state.js";
 import { getUiSnapshot, updateGame } from "./game/update.js";
 
 const STEP_MS = 1000 / 60;
@@ -75,64 +69,44 @@ window.render_game_to_text = () => {
     coordinateSystem: "origin=(0,0) top-left, +x right, +y down",
     mode: state.mode,
     elapsedMs: Math.round(state.elapsedMs),
+    stage: {
+      current: state.progression.currentStage,
+      selected: state.progression.selectedStage,
+      highestCleared: state.progression.highestClearedStage,
+      totalBossKills: state.progression.totalBossKills,
+    },
+    resources: {
+      gold: state.resources.gold,
+      gems: state.resources.gems,
+      summonStone: state.resources.summonStone,
+    },
     hero: {
-      level: state.hero.level,
-      hp: Number(state.hero.hp.toFixed(1)),
+      hp: Math.round(state.hero.hp),
       maxHp: state.hero.maxHp,
-      attack: state.hero.attack,
-      critChance: Number(state.hero.critChance.toFixed(3)),
-      xp: Number(state.hero.xp.toFixed(1)),
-      xpToNext: state.hero.xpToNext,
-    },
-    progression: {
-      stage: state.progression.stage,
-      kills: state.progression.kills,
-      bossKills: state.progression.bossKills,
-      lastScoreSubmitted: state.progression.lastScoreSubmitted,
-    },
-    enemy: {
-      name: state.enemy.name,
-      boss: state.enemy.boss,
-      hp: Number(state.enemy.hp.toFixed(1)),
-      maxHp: state.enemy.maxHp,
-      attack: state.enemy.attack,
-      rewardGold: state.enemy.rewardGold,
-      rewardXp: state.enemy.rewardXp,
-    },
-    economy: {
-      gold: ui.gold,
-      gems: ui.gems,
-      attackUpgradeLevel: state.economy.attackUpgradeLevel,
-      healthUpgradeLevel: state.economy.healthUpgradeLevel,
-      critUpgradeLevel: state.economy.critUpgradeLevel,
-      nextCosts: {
-        attack: getAttackUpgradeCost(state.economy.attackUpgradeLevel),
-        health: getHealthUpgradeCost(state.economy.healthUpgradeLevel),
-        crit: getCritUpgradeCost(state.economy.critUpgradeLevel),
-        convenience: getConvenienceSlotCost(state.monetization.convenienceSlots),
+      attack: ui.heroAttack,
+      combo: state.hero.comboCount,
+      action: state.hero.lastAction,
+      cooldowns: {
+        attackMs: Math.round(state.hero.attackCooldownMs),
+        guardMs: Math.round(state.hero.guardCooldownMs),
+        dodgeMs: Math.round(state.hero.dodgeCooldownMs),
       },
-      chest: {
-        claimable: state.economy.chest.claimable,
-        fillRatio: Number((state.economy.chest.chargeMs / state.economy.chest.intervalMs).toFixed(3)),
+      windows: {
+        guardMs: Math.round(state.hero.guardWindowMs),
+        dodgeMs: Math.round(state.hero.dodgeWindowMs),
       },
     },
-    monetization: {
-      starterPackPurchased: state.monetization.starterPackPurchased,
-      convenienceSlots: state.monetization.convenienceSlots,
-      activeSkin: state.monetization.activeSkin,
-      lastCheckoutResult: state.monetization.lastCheckoutResult,
+    equippedSword: ui.equippedSword,
+    inventoryCount: ui.inventoryCount,
+    summonResults: ui.lastSummonResults,
+    battle: {
+      phase: state.battle.phase,
+      pendingPattern: state.battle.pendingPattern,
+      telegraphMs: Math.round(state.battle.telegraphMs),
+      floatingText: state.battle.floatingText,
+      boss: ui.boss,
     },
-    social: {
-      guild: state.social.guildId,
-      leaderboardTop3: ui.leaderboard.slice(0, 3),
-      lastRank: state.socialUi.lastRank,
-      lastBragCardText: state.socialUi.lastBragCardText,
-    },
-    analytics: {
-      acceptedEventCount: state.analytics.acceptedEvents.length,
-      rejectedEventCount: state.analytics.rejectedEvents.length,
-      latestEventName: state.analytics.acceptedEvents.at(-1)?.eventName ?? null,
-    },
+    notice: state.ui.notice,
   };
   return JSON.stringify(payload);
 };
